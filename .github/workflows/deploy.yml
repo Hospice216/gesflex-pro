@@ -93,6 +93,9 @@ jobs:
       - name: 🏗️ Build de production
         run: npm run build
         
+      - name: 📝 Créer fichier .nojekyll
+        run: touch dist/.nojekyll
+        
       - name: 🚀 Déploiement sur GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

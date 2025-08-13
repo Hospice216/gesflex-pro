@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GesFlex Pro - Page non trouvée</title>
+    <script>
+        // Redirection pour le routing SPA
+        const path = window.location.pathname;
+        if (path !== '/' && !path.includes('.')) {
+            window.location.href = '/gesflex-pro/';
+        }
+    </script>
+</head>
+<body>
+    <div id="root">
+        <h1>Page non trouvée</h1>
+        <p>Redirection en cours...</p>
+    </div>
+</body>
+</html>
