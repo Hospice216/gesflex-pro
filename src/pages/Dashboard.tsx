@@ -11,7 +11,7 @@ import { useDashboardStats } from '@/hooks/useDashboardStats'
 import { useStoreSalesStats, usePeriodSalesStats, useTopSellingProducts, PeriodType } from '@/hooks/useSalesStats'
 import { useStoreInventory } from '@/hooks/useStoreInventory'
 import { useCurrency } from '@/hooks/useCurrency'
-import { DataValidatorComponent } from '@/components/DataValidator'
+import { DashboardDataValidatorComponent } from '@/components/DashboardDataValidator'
 import { DashboardSkeleton } from '@/components/LoadingStates'
 import { ListPageErrorHandler } from '@/components/ListPageErrorHandler'
 import DashboardErrorBoundary from '@/components/DashboardErrorBoundary'
@@ -339,7 +339,7 @@ export default function Dashboard() {
         {loading ? (
           <DashboardSkeleton />
         ) : hasValidData ? (
-          <DataValidatorComponent data={{ recentSales, lowStockProducts }}>
+          <DashboardDataValidatorComponent data={{ recentSales, lowStockProducts }}>
             {(validatedData, isValid, errors) => {
               // ✅ NOUVEAU : Log des erreurs de validation en développement
               if (process.env.NODE_ENV === 'development' && errors.length > 0) {
@@ -460,7 +460,7 @@ export default function Dashboard() {
                 </>
               )
             }}
-          </DataValidatorComponent>
+          </DashboardDataValidatorComponent>
         ) : (
           // ✅ NOUVEAU : État d'erreur silencieux avec message informatif
           <div className="text-center py-8">
