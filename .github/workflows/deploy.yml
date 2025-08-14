@@ -15,7 +15,7 @@ jobs:
     name: 🏗️ Build et Déploiement
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pages: write
       id-token: write
       
@@ -45,8 +45,24 @@ jobs:
       - name: 🏗️ Build de production
         run: npm run build
         
+      - name: 🔍 Vérifier le build
+        run: |
+          echo "Contenu du dossier dist:"
+          ls -la dist/
+          echo "Fichiers JavaScript:"
+          find dist/ -name "*.js" | head -5
+        
       - name: 📝 Créer fichier .nojekyll
         run: touch dist/.nojekyll
+        
+      - name: 🔧 Configurer les types MIME
+        run: |
+          echo "/*.js" > dist/_headers
+          echo "  Content-Type: application/javascript" >> dist/_headers
+          echo "/*.mjs" >> dist/_headers
+          echo "  Content-Type: application/javascript" >> dist/_headers
+          echo "/*.css" >> dist/_headers
+          echo "  Content-Type: text/css" >> dist/_headers
         
       - name: 🚀 Déploiement sur GitHub Pages
         id: deployment
@@ -55,3 +71,4 @@ jobs:
           path: dist/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false

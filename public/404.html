@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GesFlex Pro - Page non trouvée</title>
     <script>
-        // Redirection pour le routing SPA
+        // Redirection pour le routing SPA sur GitHub Pages
         const path = window.location.pathname;
-        if (path !== '/' && !path.includes('.')) {
-            window.location.href = '/gesflex-pro/';
+        const basePath = '/gesflex-pro';
+        
+        if (path !== basePath && !path.includes('.')) {
+            // Rediriger vers la page d'accueil
+            window.location.href = basePath + '/';
         }
     </script>
 </head>

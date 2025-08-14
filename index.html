@@ -20,5 +20,15 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fallback pour les navigateurs qui ne supportent pas les modules ES6
+      if (!window.location.origin.includes('localhost')) {
+        // Redirection pour GitHub Pages
+        const path = window.location.pathname;
+        if (path !== '/' && !path.includes('.') && !path.includes('/gesflex-pro/')) {
+          window.location.href = '/gesflex-pro/';
+        }
+      }
+    </script>
   </body>
 </html>
