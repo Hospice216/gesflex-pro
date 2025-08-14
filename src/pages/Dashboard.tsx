@@ -17,6 +17,7 @@ import { ListPageErrorHandler } from '@/components/ListPageErrorHandler'
 import DashboardErrorBoundary from '@/components/DashboardErrorBoundary'
 import DatabaseViewsTest from '@/components/DatabaseViewsTest'
 import AdvancedDashboardDiagnostic from '@/components/AdvancedDashboardDiagnostic'
+import StoreSelector from '@/components/StoreSelector'
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -29,28 +30,34 @@ export default function Dashboard() {
   
   // ✅ NOUVEAU : États pour les filtres et périodes
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('month')
-  const [selectedStore, setSelectedStore] = useState<string>('')
+  const [selectedStore, setSelectedStore] = useState<string>('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
   
   // ✅ NOUVEAU : Hooks optimisés pour les statistiques
+  const storeId = selectedStore === 'all' 
+    ? undefined 
+    : selectedStore === 'current' 
+      ? userProfile?.store_id 
+      : selectedStore || userProfile?.store_id
+  
   const { data: salesStats, isLoading: salesStatsLoading } = useStoreSalesStats(
-    selectedStore || userProfile?.store_id || '',
+    storeId,
     undefined,
     undefined
   )
   
   const { data: periodStats, isLoading: periodStatsLoading } = usePeriodSalesStats(
-    selectedStore || userProfile?.store_id || '',
+    storeId,
     selectedPeriod
   )
   
   const { data: topProducts, isLoading: topProductsLoading } = useTopSellingProducts(
-    selectedStore || userProfile?.store_id || '',
+    storeId,
     5
   )
   
   const { data: inventoryStats, isLoading: inventoryLoading } = useStoreInventory(
-    selectedStore || userProfile?.store_id || ''
+    storeId
   )
 
   // ✅ NOUVEAU : Fonction de rafraîchissement
@@ -245,15 +252,11 @@ export default function Dashboard() {
               
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">Magasin</label>
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tous les magasins" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Tous les magasins</SelectItem>
-                    {/* TODO: Ajouter la liste des magasins disponibles */}
-                  </SelectContent>
-                </Select>
+                <StoreSelector 
+                  value={selectedStore} 
+                  onValueChange={setSelectedStore}
+                  placeholder="Tous les magasins"
+                />
               </div>
             </div>
 
