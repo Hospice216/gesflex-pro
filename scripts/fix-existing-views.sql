@@ -58,8 +58,14 @@ WHERE s.sold_at >= CURRENT_DATE - INTERVAL '30 days'
 GROUP BY DATE(s.sold_at), s.store_id, st.name
 ORDER BY sale_date DESC, store_name;
 
--- 4. Recréer ou mettre à jour la fonction get_store_inventory
-CREATE OR REPLACE FUNCTION get_store_inventory(
+-- 4. Supprimer toutes les fonctions get_store_inventory existantes pour éviter les conflits
+DROP FUNCTION IF EXISTS get_store_inventory(UUID, TEXT);
+DROP FUNCTION IF EXISTS get_store_inventory(UUID);
+DROP FUNCTION IF EXISTS get_store_inventory(TEXT);
+DROP FUNCTION IF EXISTS get_store_inventory();
+
+-- 5. Recréer la fonction get_store_inventory avec la signature correcte
+CREATE FUNCTION get_store_inventory(
   store_id_filter UUID DEFAULT NULL,
   stock_status_filter TEXT DEFAULT NULL
 )
@@ -120,12 +126,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. Accorder les permissions
+-- 6. Accorder les permissions
 GRANT SELECT ON low_stock_products_view TO authenticated;
 GRANT SELECT ON sales_stats_daily_view TO authenticated;
-GRANT EXECUTE ON FUNCTION get_store_inventory TO authenticated;
+GRANT EXECUTE ON FUNCTION get_store_inventory(UUID, TEXT) TO authenticated;
 
--- 6. Vérification finale
+-- 7. Vérification finale
 SELECT 
   'Vues et fonctions corrigées avec succès !' as status,
   COUNT(*) as total_views
@@ -138,7 +144,7 @@ SELECT
 FROM information_schema.routines 
 WHERE routine_name IN ('get_store_inventory');
 
--- 7. Test des vues créées
+-- 8. Test des vues créées
 SELECT 'Test de la vue low_stock_products_view :' as test_info;
 SELECT COUNT(*) as total_records FROM low_stock_products_view LIMIT 1;
 
