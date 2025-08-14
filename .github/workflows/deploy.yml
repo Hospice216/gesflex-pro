@@ -64,11 +64,18 @@ jobs:
           echo "/*.css" >> dist/_headers
           echo "  Content-Type: text/css" >> dist/_headers
         
+      - name: 💾 Upload des artefacts de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: dist/
+          retention-days: 30
+        
       - name: 🚀 Déploiement sur GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          path: dist/
+          artifact_name: build-files
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: false
