@@ -63,7 +63,7 @@ export default function Sales() {
   const handleRetry = () => {
     setError(null)
     if (canViewSales) {
-      fetchSales()
+    fetchSales()
     }
   }
 
@@ -503,9 +503,9 @@ export default function Sales() {
         </div>
         {canCreateSale && (
           <Button onClick={handleNewSale} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nouvelle vente
-          </Button>
+          <Plus className="w-4 h-4" />
+          Nouvelle vente
+        </Button>
         )}
       </div>
 
@@ -533,19 +533,19 @@ export default function Sales() {
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {/* Ventes du jour */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ventes du jour</CardTitle>
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ventes du jour</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
                 <div className="text-2xl font-bold">{salesStats.todayProductsSold}</div>
-                <p className="text-xs text-muted-foreground">
-                  {formatAmount(salesStats.todaySales)} de chiffre d'affaires
-                </p>
-              </CardContent>
-            </Card>
-
+            <p className="text-xs text-muted-foreground">
+              {formatAmount(salesStats.todaySales)} de chiffre d'affaires
+            </p>
+          </CardContent>
+        </Card>
+        
             {/* Chiffre d'affaires */}
             <Card className="bg-gradient-card shadow-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -561,201 +561,201 @@ export default function Sales() {
             </Card>
 
             {/* Nombre de ventes */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Nombre de ventes</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
                 <div className="text-2xl font-bold">{salesStats.todayCount}</div>
-                <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
                   {formatAmount(salesStats.todaySales)} de chiffre d'affaires
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* Panier moyen */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Panier moyen</CardTitle>
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Panier moyen</CardTitle>
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(averageTicket)}</div>
-                <p className="text-xs text-muted-foreground">
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatAmount(averageTicket)}</div>
+            <p className="text-xs text-muted-foreground">
                   {salesStats.todayProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* En attente */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">En attente</CardTitle>
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En attente</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
                 <div className="text-2xl font-bold">{pendingSales}</div>
-                <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
                   {formatAmount(salesStats.todaySales)} de chiffre d'affaires
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* Total du mois */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total du mois</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(salesStats.monthlySales)}</div>
-                <p className="text-xs text-muted-foreground">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatAmount(salesStats.monthlySales)}</div>
+            <p className="text-xs text-muted-foreground">
                   {salesStats.monthlyProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* Total 7 derniers jours */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total 7 derniers jours</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(salesStats.weeklySales)}</div>
-                <p className="text-xs text-muted-foreground">
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatAmount(salesStats.weeklySales)}</div>
+            <p className="text-xs text-muted-foreground">
                   {salesStats.weeklyProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* Total hier */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total hier</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(salesStats.yesterdaySales)}</div>
-                <p className="text-xs text-muted-foreground">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatAmount(salesStats.yesterdaySales)}</div>
+            <p className="text-xs text-muted-foreground">
                   {salesStats.yesterdayProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
+            </p>
+          </CardContent>
+        </Card>
 
             {/* Total avant-hier */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total avant-hier</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(salesStats.beforeYesterdaySales)}</div>
-                <p className="text-xs text-muted-foreground">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatAmount(salesStats.beforeYesterdaySales)}</div>
+            <p className="text-xs text-muted-foreground">
                   {salesStats.beforeYesterdayProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Rechercher une vente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Popover open={showFilters} onOpenChange={setShowFilters}>
-              <PopoverTrigger asChild>
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="Rechercher une vente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Popover open={showFilters} onOpenChange={setShowFilters}>
+          <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="w-4 h-4" />
-                  Filtres
+              <Filter className="w-4 h-4" />
+              Filtres
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <h4 className="font-medium leading-none">Filtres</h4>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Période</label>
+                <Calendar
+                  mode="range"
+                  selected={filters.dateRange}
+                  onSelect={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
+                  locale={fr}
+                  className="rounded-md border"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Magasin</label>
+                <Select value={filters.store} onValueChange={(value) => setFilters(prev => ({ ...prev, store: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tous les magasins" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les magasins</SelectItem>
+                    {uniqueStores.map((store) => (
+                      <SelectItem key={store} value={store}>
+                        {store}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Méthode de paiement</label>
+                <Select value={filters.paymentMethod} onValueChange={(value) => setFilters(prev => ({ ...prev, paymentMethod: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Toutes les méthodes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les méthodes</SelectItem>
+                    <SelectItem value="cash">Espèces</SelectItem>
+                    <SelectItem value="card">Carte</SelectItem>
+                    <SelectItem value="check">Chèque</SelectItem>
+                    <SelectItem value="transfer">Virement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Statut</label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tous les statuts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="completed">Payé</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="cancelled">Annulé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={clearFilters} className="flex-1">
+                  Effacer
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-4">
-                  <h4 className="font-medium leading-none">Filtres</h4>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Période</label>
-                    <Calendar
-                      mode="range"
-                      selected={filters.dateRange}
-                      onSelect={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
-                      locale={fr}
-                      className="rounded-md border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Magasin</label>
-                    <Select value={filters.store} onValueChange={(value) => setFilters(prev => ({ ...prev, store: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tous les magasins" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les magasins</SelectItem>
-                        {uniqueStores.map((store) => (
-                          <SelectItem key={store} value={store}>
-                            {store}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Méthode de paiement</label>
-                    <Select value={filters.paymentMethod} onValueChange={(value) => setFilters(prev => ({ ...prev, paymentMethod: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Toutes les méthodes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Toutes les méthodes</SelectItem>
-                        <SelectItem value="cash">Espèces</SelectItem>
-                        <SelectItem value="card">Carte</SelectItem>
-                        <SelectItem value="check">Chèque</SelectItem>
-                        <SelectItem value="transfer">Virement</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Statut</label>
-                    <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tous les statuts" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les statuts</SelectItem>
-                        <SelectItem value="completed">Payé</SelectItem>
-                        <SelectItem value="pending">En attente</SelectItem>
-                        <SelectItem value="cancelled">Annulé</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={clearFilters} className="flex-1">
-                      Effacer
-                    </Button>
-                    <Button size="sm" onClick={() => setShowFilters(false)} className="flex-1">
-                      Appliquer
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                <Button size="sm" onClick={() => setShowFilters(false)} className="flex-1">
+                  Appliquer
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
 
-          {/* Sales List */}
-          <Card className="bg-gradient-card shadow-card">
-            <CardHeader>
-              <CardTitle>Historique des ventes</CardTitle>
-              <CardDescription>Liste de toutes vos transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
+      {/* Sales List */}
+      <Card className="bg-gradient-card shadow-card">
+        <CardHeader>
+          <CardTitle>Historique des ventes</CardTitle>
+          <CardDescription>Liste de toutes vos transactions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
@@ -771,10 +771,10 @@ export default function Sales() {
                       <div className="animate-pulse bg-gray-300 h-8 w-8 rounded"></div>
                     </div>
                   ))}
-                </div>
-              ) : filteredSales.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <TrendingUp className="w-16 h-16 text-muted-foreground/20 mb-4" />
+            </div>
+          ) : filteredSales.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <TrendingUp className="w-16 h-16 text-muted-foreground/20 mb-4" />
                   {searchTerm || Object.values(filters).some(v => v !== "all" && v !== null) ? (
                     <>
                       <p className="text-muted-foreground mb-2">Aucune vente trouvée avec les critères actuels</p>
@@ -788,46 +788,46 @@ export default function Sales() {
                     <>
                       <p className="text-muted-foreground mb-4">Aucune vente enregistrée</p>
                       {canCreateSale && (
-                        <Button onClick={handleNewSale} variant="outline">
+              <Button onClick={handleNewSale} variant="outline">
                           Créer votre première vente
-                        </Button>
+              </Button>
                       )}
                     </>
                   )}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Magasin</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Paiement</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Date</TableHead>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Magasin</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Paiement</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Date</TableHead>
                       <TableHead>Vendeur</TableHead>
                       <TableHead>Quantité vendue</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSales.map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="font-medium">{sale.sale_code}</TableCell>
-                        <TableCell>{sale.customer_name || "Client anonyme"}</TableCell>
-                        <TableCell>{sale.stores?.name}</TableCell>
-                        <TableCell className="font-medium">{formatAmount(sale.total_amount)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {getPaymentMethodIcon(sale.payment_method)}
-                            <span className="text-sm">{getPaymentMethodLabel(sale.payment_method)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(sale.status || "completed")}
-                        </TableCell>
-                        <TableCell>{new Date(sale.created_at).toLocaleDateString()}</TableCell>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSales.map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-medium">{sale.sale_code}</TableCell>
+                    <TableCell>{sale.customer_name || "Client anonyme"}</TableCell>
+                    <TableCell>{sale.stores?.name}</TableCell>
+                    <TableCell className="font-medium">{formatAmount(sale.total_amount)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {getPaymentMethodIcon(sale.payment_method)}
+                        <span className="text-sm">{getPaymentMethodLabel(sale.payment_method)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(sale.status || "completed")}
+                    </TableCell>
+                    <TableCell>{new Date(sale.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="font-medium">
                           {sale.users ? 
                             `${sale.users.first_name || ''} ${sale.users.last_name || ''}`.trim() || 
@@ -838,43 +838,43 @@ export default function Sales() {
                         <TableCell className="font-medium">
                           {sale.sale_items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
                         </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewDetails(sale)}>
-                                Voir détails
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
-                                Imprimer reçu
-                              </DropdownMenuItem>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(sale)}>
+                            Voir détails
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
+                            Imprimer reçu
+                          </DropdownMenuItem>
                               {(canHandleReturns || canManageOwnSale(sale)) && (
-                                <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
-                                  Retour/Échange
-                                </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
+                            Retour/Échange
+                          </DropdownMenuItem>
                               )}
                               {(canCancelSales || canManageOwnSale(sale)) && (
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={() => handleCancelSale(sale)}
-                                >
-                                  Annuler
-                                </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleCancelSale(sale)}
+                          >
+                            Annuler
+                          </DropdownMenuItem>
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
         </>
       )}
 

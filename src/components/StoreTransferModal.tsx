@@ -96,34 +96,15 @@ export default function StoreTransferModal({
       // - Magasins source : seulement les magasins assignés à l'utilisateur
       // - Magasins destination : TOUS les magasins (pour permettre les transferts inter-magasins)
       
-      console.log('🔍 Debug - Récupération des magasins...')
-      console.log('🔍 Debug - User ID:', userProfile.id)
-      console.log('🔍 Debug - User Role:', userProfile.role)
-      
-      // Test direct de getAllStores
-      console.log('🔍 Debug - Test direct de getAllStores...')
-      try {
-        const testAllStores = await getAllStores()
-        console.log('🔍 Debug - Test getAllStores résultat:', testAllStores)
-        console.log('🔍 Debug - Test getAllStores type:', typeof testAllStores)
-        console.log('🔍 Debug - Test getAllStores length:', testAllStores?.length)
-      } catch (testError) {
-        console.error('🔍 Debug - Erreur test getAllStores:', testError)
-      }
-      
       const [accessibleSourceStores, allDestinationStores] = await Promise.all([
         getUserAccessibleStores(userProfile.id, userProfile.role),
         getAllStores()
       ])
 
-      console.log('🔍 Debug - Magasins source accessibles:', accessibleSourceStores)
-      console.log('🔍 Debug - Tous les magasins destination:', allDestinationStores)
-      console.log('🔍 Debug - Nombre magasins source:', accessibleSourceStores.length)
-      console.log('🔍 Debug - Nombre magasins destination:', allDestinationStores.length)
-
       setSourceStores(accessibleSourceStores)
       setDestinationStores(allDestinationStores)
 
+      // ✅ VÉRIFICATIONS ET FEEDBACK UTILISATEUR
       if (accessibleSourceStores.length === 0) {
         toast({
           title: "Attention",
@@ -133,13 +114,15 @@ export default function StoreTransferModal({
       }
 
       if (allDestinationStores.length === 0) {
-        console.error('🔍 Debug - Aucun magasin destination trouvé!')
         toast({
           title: "Attention",
           description: "Aucun magasin destination disponible. Contactez votre administrateur.",
           variant: "destructive",
         })
       }
+
+      // ✅ LOG DE CONFIRMATION
+      console.log(`✅ Magasins chargés - Source: ${accessibleSourceStores.length}, Destination: ${allDestinationStores.length}`)
     } catch (error) {
       console.error('Erreur chargement magasins:', error)
       toast({
@@ -181,6 +164,7 @@ export default function StoreTransferModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // ✅ VALIDATION COMPLÈTE DES DONNÉES
     if (!formData.source_store_id || !formData.destination_store_id || !formData.product_id || formData.quantity <= 0) {
       toast({
         title: "Données manquantes",
@@ -190,10 +174,43 @@ export default function StoreTransferModal({
       return
     }
 
+    // ✅ VÉRIFICATION DES MAGASINS
     if (formData.source_store_id === formData.destination_store_id) {
       toast({
         title: "Magasins identiques",
         description: "Le magasin source et destination ne peuvent pas être identiques",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // ✅ VÉRIFICATION DES PERMISSIONS
+    if (!userProfile?.id || !userProfile?.role) {
+      toast({
+        title: "Erreur",
+        description: "Informations utilisateur manquantes",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // ✅ VÉRIFICATION QUE LE MAGASIN SOURCE EST ACCESSIBLE
+    const sourceStoreAccessible = sourceStores.some(store => store.id === formData.source_store_id)
+    if (!sourceStoreAccessible) {
+      toast({
+        title: "Permission refusée",
+        description: "Vous n'avez pas accès au magasin source sélectionné",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // ✅ VÉRIFICATION QUE LE MAGASIN DESTINATION EXISTE
+    const destinationStoreExists = destinationStores.some(store => store.id === formData.destination_store_id)
+    if (!destinationStoreExists) {
+      toast({
+        title: "Magasin invalide",
+        description: "Le magasin destination sélectionné n'existe pas",
         variant: "destructive",
       })
       return
@@ -298,7 +315,11 @@ export default function StoreTransferModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Magasin Source</Label>
+            <Label className="flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Magasin Source
+              <span className="text-xs text-muted-foreground">(Vos magasins assignés)</span>
+            </Label>
             <Select 
               value={formData.source_store_id} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, source_store_id: value }))}
@@ -307,17 +328,32 @@ export default function StoreTransferModal({
                 <SelectValue placeholder="Sélectionner le magasin source" />
               </SelectTrigger>
               <SelectContent>
-                {sourceStores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
+                {sourceStores.length > 0 ? (
+                  sourceStores.map((store) => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    Aucun magasin accessible
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
+            {sourceStores.length === 0 && (
+              <p className="text-xs text-destructive">
+                Vous devez être assigné à au moins un magasin pour créer des transferts
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label>Magasin Destination</Label>
+            <Label className="flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              Magasin Destination
+              <span className="text-xs text-muted-foreground">(Tous les magasins disponibles)</span>
+            </Label>
             <Select 
               value={formData.destination_store_id} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, destination_store_id: value }))}
@@ -326,13 +362,26 @@ export default function StoreTransferModal({
                 <SelectValue placeholder="Sélectionner le magasin destination" />
               </SelectTrigger>
               <SelectContent>
-                {destinationStores.filter(store => store.id !== formData.source_store_id).map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
+                {destinationStores.length > 0 ? (
+                  destinationStores
+                    .filter(store => store.id !== formData.source_store_id)
+                    .map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    Aucun magasin disponible
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
+            {destinationStores.length === 0 && (
+              <p className="text-xs text-destructive">
+                Aucun magasin destination disponible
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

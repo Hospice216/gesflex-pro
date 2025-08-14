@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -53,13 +53,8 @@ export function useDashboardStats() {
 
   const { userProfile } = useAuth()
 
-  useEffect(() => {
-    if (userProfile) {
-      fetchDashboardStats()
-    }
-  }, [userProfile])
-
-  const fetchDashboardStats = async () => {
+  // ✅ CORRECTION : Fonction fetchDashboardStats extraite et réutilisable
+  const fetchDashboardStats = useCallback(async () => {
     try {
       setStats(prev => ({ ...prev, loading: true, error: null }))
 
@@ -97,6 +92,14 @@ export function useDashboardStats() {
         fetchRecentSales(userProfile.id)
       ])
 
+      // ✅ CORRECTION : Validation des résultats avant traitement
+      if (dailySalesResult.error) throw new Error(`Erreur ventes du jour: ${dailySalesResult.error.message}`)
+      if (yesterdaySalesResult.error) throw new Error(`Erreur ventes hier: ${yesterdaySalesResult.error.message}`)
+      if (monthlySalesResult.error) throw new Error(`Erreur ventes mensuelles: ${monthlySalesResult.error.message}`)
+      if (productsResult.error) throw new Error(`Erreur comptage produits: ${productsResult.error.message}`)
+      if (lowStockResult.error) throw new Error(`Erreur stock faible: ${lowStockResult.error.message}`)
+      if (recentSalesResult.error) throw new Error(`Erreur ventes récentes: ${recentSalesResult.error.message}`)
+
       // ✅ SOLUTION : Calculs simplifiés et robustes
       const dailySales = dailySalesResult.data || []
       const yesterdaySales = yesterdaySalesResult.data || []
@@ -133,7 +136,18 @@ export function useDashboardStats() {
         error: error instanceof Error ? error.message : 'Erreur inconnue'
       }))
     }
-  }
+  }, [userProfile])
+
+  // ✅ NOUVEAU : Fonction refetch pour retry manuel
+  const refetch = useCallback(() => {
+    fetchDashboardStats()
+  }, [fetchDashboardStats])
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchDashboardStats()
+    }
+  }, [userProfile, fetchDashboardStats])
 
   // ✅ SOLUTION : Fonctions de récupération séparées et réutilisables
   const fetchDailySales = async (userId: string) => {
@@ -198,7 +212,7 @@ export function useDashboardStats() {
     if (error) throw error
 
     const uniqueProductIds = [...new Set(data?.map(ps => ps.product_id) || [])]
-    return { data: uniqueProductIds.length }
+    return { data: uniqueProductIds.length, error: null }
   }
 
   const fetchLowStockProducts = async (storeIds: string[]) => {
@@ -207,51 +221,67 @@ export function useDashboardStats() {
     const { data, error } = await supabase
       .from('product_stores')
       .select(`
-        id,
-        current_stock,
-        min_stock,
-        products (id, name, sku, alert_stock),
-        stores (name)
+        products (
+          id, name, sku, alert_stock
+        ),
+        stores (name),
+        current_stock
       `)
       .in('store_id', storeIds)
+      .lt('current_stock', 'products.alert_stock')
 
     if (error) throw error
 
-    const lowStockItems = data?.filter(item => {
-      const product = Array.isArray(item.products) ? item.products[0] : item.products
-      const alertStock = product?.alert_stock || item.min_stock || 10
-      return item.current_stock <= alertStock
-    }).map(item => {
-      const product = Array.isArray(item.products) ? item.products[0] : item.products
-      const store = Array.isArray(item.stores) ? item.stores[0] : item.stores
+    // ✅ CORRECTION : Gestion correcte des relations Supabase
+    const lowStockItems = data?.map(ps => {
+      const product = Array.isArray(ps.products) ? ps.products[0] : ps.products
+      const store = Array.isArray(ps.stores) ? ps.stores[0] : ps.stores
+      
       return {
-        id: item.id,
-        name: product?.name || 'Produit inconnu',
-        sku: product?.sku || 'SKU inconnu',
-        current_stock: item.current_stock,
-        alert_stock: product?.alert_stock || item.min_stock || 10,
-        store_name: store?.name || 'Magasin inconnu'
+        id: product?.id,
+        name: product?.name,
+        sku: product?.sku,
+        current_stock: ps.current_stock,
+        alert_stock: product?.alert_stock,
+        store_name: store?.name
       }
-    }) || []
+    }).filter(item => item.id) || []
 
-    return { data: lowStockItems }
+    return { data: lowStockItems, error: null }
   }
 
   const fetchRecentSales = async (userId: string) => {
-    return await supabase
+    const { data, error } = await supabase
       .from('sales')
       .select(`
-        id,
-        sale_code,
-        total_amount,
-        customer_name,
-        created_at,
+        id, sale_code, total_amount, customer_name, created_at,
         stores (name)
       `)
       .eq('sold_by', userId)
       .order('created_at', { ascending: false })
       .limit(5)
+
+    if (error) throw error
+
+    // ✅ CORRECTION : Gestion correcte des relations Supabase
+    const recentSales = data?.map(sale => {
+      const store = Array.isArray(sale.stores) ? sale.stores[0] : sale.stores
+      
+      return {
+        id: sale.id,
+        sale_code: sale.sale_code,
+        total_amount: sale.total_amount,
+        customer_name: sale.customer_name,
+        created_at: sale.created_at,
+        store_name: store?.name
+      }
+    }) || []
+
+    return { data: recentSales, error: null }
   }
 
-  return stats
+  return {
+    ...stats,
+    refetch
+  }
 }

@@ -88,32 +88,22 @@ export const getUserAccessibleStores = async (userId: string, userRole: string):
  */
 export const getAllStores = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    console.log('🔍 getAllStores - Début de la fonction')
-    
+    // ✅ CORRECTION : Requête simplifiée et robuste
     const { data, error } = await supabase
       .from("stores")
       .select("id, name")
       .eq("is_active", true)
       .order("name")
 
-    console.log('🔍 getAllStores - Requête Supabase exécutée')
-    console.log('🔍 getAllStores - Data:', data)
-    console.log('🔍 getAllStores - Error:', error)
-    console.log('🔍 getAllStores - Data length:', data?.length)
-
     if (error) {
-      console.error('🔍 getAllStores - Erreur Supabase:', error)
+      console.error('Erreur getAllStores:', error)
       throw error
     }
 
-    const result = data || []
-    console.log('🔍 getAllStores - Résultat final:', result)
-    console.log('🔍 getAllStores - Résultat length:', result.length)
-    
-    return result
+    return data || []
   } catch (error) {
-    console.error('🔍 getAllStores - Erreur générale:', error)
-    console.error('🔍 getAllStores - Stack trace:', error instanceof Error ? error.stack : 'Pas de stack trace')
+    console.error('Erreur getAllStores:', error)
+    // ✅ CORRECTION : Retourner une liste vide en cas d'erreur
     return []
   }
 }
