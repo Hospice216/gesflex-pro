@@ -16,6 +16,7 @@ import { DashboardSkeleton } from '@/components/LoadingStates'
 import { ListPageErrorHandler } from '@/components/ListPageErrorHandler'
 import DashboardErrorBoundary from '@/components/DashboardErrorBoundary'
 import DatabaseViewsTest from '@/components/DatabaseViewsTest'
+import AdvancedDashboardDiagnostic from '@/components/AdvancedDashboardDiagnostic'
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -221,6 +222,9 @@ export default function Dashboard() {
           <CardContent className="space-y-6">
             {/* ✅ NOUVEAU : Composant de test des vues PostgreSQL */}
             <DatabaseViewsTest />
+            
+            {/* 🔍 NOUVEAU : Diagnostic avancé du Dashboard */}
+            <AdvancedDashboardDiagnostic />
             
             {/* Filtres */}
             <div className="flex flex-col sm:flex-row gap-4">
