@@ -15,6 +15,7 @@ import { DataValidatorComponent } from '@/components/DataValidator'
 import { DashboardSkeleton } from '@/components/LoadingStates'
 import { ListPageErrorHandler } from '@/components/ListPageErrorHandler'
 import DashboardErrorBoundary from '@/components/DashboardErrorBoundary'
+import DatabaseViewsTest from '@/components/DatabaseViewsTest'
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -196,7 +197,11 @@ export default function Dashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Tous les magasins</SelectItem>
-                      {/* TODO: Ajouter la liste des magasins disponibles */}
+                      {userStores.map(store => (
+                        <SelectItem key={store.id} value={store.id}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -214,11 +219,14 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* ✅ NOUVEAU : Composant de test des vues PostgreSQL */}
+            <DatabaseViewsTest />
+            
             {/* Filtres */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">Période</label>
-                <Select value={selectedPeriod} onValueChange={(value: any) => setSelectedPeriod(value)}>
+                <Select value={selectedPeriod} onValueChange={(value: string) => setSelectedPeriod(value as PeriodType)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner une période" />
                   </SelectTrigger>
