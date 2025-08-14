@@ -15,8 +15,6 @@ import { DashboardDataValidatorComponent } from '@/components/DashboardDataValid
 import { DashboardSkeleton } from '@/components/LoadingStates'
 import { ListPageErrorHandler } from '@/components/ListPageErrorHandler'
 import DashboardErrorBoundary from '@/components/DashboardErrorBoundary'
-import DatabaseViewsTest from '@/components/DatabaseViewsTest'
-import AdvancedDashboardDiagnostic from '@/components/AdvancedDashboardDiagnostic'
 import StoreSelector from '@/components/StoreSelector'
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -226,13 +224,50 @@ export default function Dashboard() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* ✅ NOUVEAU : Composant de test des vues PostgreSQL */}
-            <DatabaseViewsTest />
-            
-            {/* 🔍 NOUVEAU : Diagnostic avancé du Dashboard */}
-            <AdvancedDashboardDiagnostic />
-            
+                    <CardContent className="space-y-6">
+            {/* Statistiques principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-4 text-center">
+                  <DollarSign className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-blue-900">
+                    {periodStats?.total_revenue ? formatAmount(periodStats.total_revenue) : '0'}
+                  </div>
+                  <p className="text-sm text-blue-700 font-medium">Chiffre d'affaires</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-4 text-center">
+                  <ShoppingCart className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-green-900">
+                    {periodStats?.total_sales || 0}
+                  </div>
+                  <p className="text-sm text-green-700 font-medium">Ventes</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
+                <CardContent className="p-4 text-center">
+                  <AlertTriangle className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-orange-900">
+                    {lowStockProducts?.count || 0}
+                  </div>
+                  <p className="text-sm text-orange-700 font-medium">Stock faible</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-4 text-center">
+                  <Store className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-purple-900">
+                    {userStores?.length || 0}
+                  </div>
+                  <p className="text-sm text-purple-700 font-medium">Magasins actifs</p>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Filtres */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
@@ -341,10 +376,6 @@ export default function Dashboard() {
         ) : hasValidData ? (
           <DashboardDataValidatorComponent data={{ recentSales, lowStockProducts }}>
             {(validatedData, isValid, errors) => {
-              // ✅ NOUVEAU : Log des erreurs de validation en développement
-              if (process.env.NODE_ENV === 'development' && errors.length > 0) {
-                console.warn('Erreurs de validation des données:', errors)
-              }
 
               return (
                 <>

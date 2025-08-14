@@ -12,24 +12,61 @@ export class DashboardDataValidator extends DataValidator {
     const errors: string[] = []
     const sanitized: any = {}
 
-    // Validation des ventes récentes
+
+
+    // Validation des ventes récentes - Plus tolérant
     if (data?.recentSales) {
-      if (this.isValidArray(data.recentSales)) {
-        sanitized.recentSales = data.recentSales.map((sale: any) => this.validateSaleData(sale).sanitized)
+      if (Array.isArray(data.recentSales)) {
+        sanitized.recentSales = data.recentSales.length > 0 
+          ? data.recentSales.map((sale: any) => this.validateSaleData(sale).sanitized)
+          : []
       } else {
         sanitized.recentSales = []
-        errors.push('Format des ventes récentes invalide')
+        errors.push('Format des ventes récentes invalide (attendu: tableau)')
       }
     } else {
       sanitized.recentSales = []
     }
 
-    // Validation des produits en stock faible
+    // Validation des produits en stock faible - Plus flexible
     if (data?.lowStockProducts) {
-      if (this.isValidArray(data.lowStockProducts)) {
+      if (Array.isArray(data.lowStockProducts)) {
+        // Format tableau (attendu)
         sanitized.lowStockProducts = {
           count: data.lowStockProducts.length,
-          items: data.lowStockProducts.map((product: any) => this.validateProductData(product).sanitized)
+          items: data.lowStockProducts.length > 0 
+            ? data.lowStockProducts.map((product: any) => this.validateProductData(product).sanitized)
+            : []
+        }
+      } else if (typeof data.lowStockProducts === 'object' && data.lowStockProducts !== null) {
+        // Format objet (fallback) - essayer d'extraire les données
+        if (data.lowStockProducts.items && Array.isArray(data.lowStockProducts.items)) {
+          // Items est déjà un tableau
+          sanitized.lowStockProducts = {
+            count: data.lowStockProducts.items.length,
+            items: data.lowStockProducts.items.map((product: any) => this.validateProductData(product).sanitized)
+          }
+        } else if (data.lowStockProducts.items && typeof data.lowStockProducts.items === 'object') {
+          // Items est un objet - essayer de le convertir en tableau
+          const itemsArray = Object.values(data.lowStockProducts.items)
+          if (itemsArray.length > 0) {
+            sanitized.lowStockProducts = {
+              count: itemsArray.length,
+              items: itemsArray.map((product: any) => this.validateProductData(product).sanitized)
+            }
+          } else {
+            // Objet vide - pas d'erreur, juste un stock optimal
+            sanitized.lowStockProducts = { count: 0, items: [] }
+          }
+        } else if (data.lowStockProducts.data && Array.isArray(data.lowStockProducts.data)) {
+          sanitized.lowStockProducts = {
+            count: data.lowStockProducts.data.length,
+            items: data.lowStockProducts.data.map((product: any) => this.validateProductData(product).sanitized)
+          }
+        } else {
+          // Objet avec structure inconnue
+          sanitized.lowStockProducts = { count: 0, items: [] }
+          errors.push('Structure des produits en stock faible non reconnue')
         }
       } else {
         sanitized.lowStockProducts = { count: 0, items: [] }
