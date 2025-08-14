@@ -44,9 +44,9 @@ ORDER BY routine_name;
 -- 5. Vérifier les tables de base nécessaires
 SELECT 
   'Tables de base nécessaires :' as info,
-  table_name,
+  t.table_name,
   CASE 
-    WHEN table_name IS NOT NULL THEN '✅ Existe'
+    WHEN it.table_name IS NOT NULL THEN '✅ Existe'
     ELSE '❌ Manquante'
   END as status
 FROM (
