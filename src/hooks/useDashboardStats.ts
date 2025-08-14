@@ -218,36 +218,63 @@ export function useDashboardStats() {
   const fetchLowStockProducts = async (storeIds: string[]) => {
     if (storeIds.length === 0) return { data: [] }
 
-    const { data, error } = await supabase
-      .from('product_stores')
-      .select(`
-        products (
-          id, name, sku, alert_stock
-        ),
-        stores (name),
-        current_stock
-      `)
-      .in('store_id', storeIds)
-      .lt('current_stock', 'products.alert_stock')
+    // ✅ CORRECTION : Utiliser la vue PostgreSQL optimisée au lieu d'une requête complexe
+    try {
+      const { data, error } = await supabase
+        .from('low_stock_products_view')
+        .select('*')
+        .in('store_id', storeIds)
 
-    if (error) throw error
+      if (error) throw error
 
-    // ✅ CORRECTION : Gestion correcte des relations Supabase
-    const lowStockItems = data?.map(ps => {
-      const product = Array.isArray(ps.products) ? ps.products[0] : ps.products
-      const store = Array.isArray(ps.stores) ? ps.stores[0] : ps.stores
+      // ✅ CORRECTION : Mapping des données depuis la vue
+      const lowStockItems = data?.map(item => ({
+        id: item.product_id,
+        name: item.product_name,
+        sku: item.product_sku,
+        current_stock: item.current_stock,
+        alert_stock: item.alert_stock,
+        store_name: item.store_name
+      })) || []
+
+      return { data: lowStockItems, error: null }
+    } catch (error) {
+      // ✅ CORRECTION : Fallback vers la méthode originale si la vue n'existe pas
+      console.warn('Vue low_stock_products_view non disponible, utilisation de la méthode alternative')
       
-      return {
-        id: product?.id,
-        name: product?.name,
-        sku: product?.sku,
-        current_stock: ps.current_stock,
-        alert_stock: product?.alert_stock,
-        store_name: store?.name
-      }
-    }).filter(item => item.id) || []
+      const { data, error: fallbackError } = await supabase
+        .from('product_stores')
+        .select(`
+          products (
+            id, name, sku, alert_stock
+          ),
+          stores (name),
+          current_stock
+        `)
+        .in('store_id', storeIds)
 
-    return { data: lowStockItems, error: null }
+      if (fallbackError) throw fallbackError
+
+      // ✅ CORRECTION : Filtrage côté client pour éviter l'erreur Supabase
+      const lowStockItems = data?.filter(ps => {
+        const product = Array.isArray(ps.products) ? ps.products[0] : ps.products
+        return product && ps.current_stock < (product.alert_stock || 0)
+      }).map(ps => {
+        const product = Array.isArray(ps.products) ? ps.products[0] : ps.products
+        const store = Array.isArray(ps.stores) ? ps.stores[0] : ps.stores
+        
+        return {
+          id: product?.id,
+          name: product?.name,
+          sku: product?.sku,
+          current_stock: ps.current_stock,
+          alert_stock: product?.alert_stock,
+          store_name: store?.name
+        }
+      }).filter(item => item.id) || []
+
+      return { data: lowStockItems, error: null }
+    }
   }
 
   const fetchRecentSales = async (userId: string) => {
