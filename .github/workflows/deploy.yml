@@ -45,6 +45,14 @@ jobs:
       - name: 🏗️ Build de production
         run: npm run build
         
+      - name: 🧹 Nettoyer le build
+        run: |
+          echo "Nettoyage du dossier dist..."
+          find dist/ -type l -delete 2>/dev/null || true
+          find dist/ -type f -size +50M -delete 2>/dev/null || true
+          echo "Taille du dossier dist:"
+          du -sh dist/
+        
       - name: 🔍 Vérifier le build
         run: |
           echo "Contenu du dossier dist:"
@@ -68,8 +76,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-files
-          path: dist/
+          path: |
+            dist/*.html
+            dist/*.js
+            dist/*.css
+            dist/*.json
+            dist/assets/
+            dist/.nojekyll
+            dist/_headers
           retention-days: 30
+        
+      - name: 🔍 Vérifier la taille des artefacts
+        run: |
+          echo "Vérification des artefacts uploadés..."
+          ls -la dist/ | head -20
+          echo "Fichiers JavaScript:"
+          find dist/ -name "*.js" -exec ls -lh {} \; | head -10
         
       - name: 🚀 Déploiement sur GitHub Pages
         id: deployment
