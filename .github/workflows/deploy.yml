@@ -2,8 +2,6 @@ name: 🚀 Déploiement Automatique GesFlex Pro
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
@@ -11,8 +9,8 @@ env:
   NODE_VERSION: '18'
 
 jobs:
-  build-and-deploy:
-    name: 🏗️ Build et Déploiement
+  deploy:
+    name: 🚀 Déploiement GitHub Pages
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,29 +34,8 @@ jobs:
       - name: 📦 Installation des dépendances
         run: npm ci
         
-      - name: 🔍 Vérification des types TypeScript
-        run: npm run type-check || echo "Type check failed, continuing..."
-        
-      - name: 🧹 Linting du code
-        run: npm run lint || echo "Linting failed, continuing..."
-        
       - name: 🏗️ Build de production
         run: npm run build
-        
-      - name: 🧹 Nettoyer le build
-        run: |
-          echo "Nettoyage du dossier dist..."
-          find dist/ -type l -delete 2>/dev/null || true
-          find dist/ -type f -size +50M -delete 2>/dev/null || true
-          echo "Taille du dossier dist:"
-          du -sh dist/
-        
-      - name: 🔍 Vérifier le build
-        run: |
-          echo "Contenu du dossier dist:"
-          ls -la dist/
-          echo "Fichiers JavaScript:"
-          find dist/ -name "*.js" | head -5
         
       - name: 📝 Créer fichier .nojekyll
         run: touch dist/.nojekyll
@@ -72,32 +49,8 @@ jobs:
           echo "/*.css" >> dist/_headers
           echo "  Content-Type: text/css" >> dist/_headers
         
-      - name: 💾 Upload des artefacts de build
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-files
-          path: |
-            dist/*.html
-            dist/*.js
-            dist/*.css
-            dist/*.json
-            dist/assets/
-            dist/.nojekyll
-            dist/_headers
-          retention-days: 30
-        
-      - name: 🔍 Vérifier la taille des artefacts
-        run: |
-          echo "Vérification des artefacts uploadés..."
-          ls -la dist/ | head -20
-          echo "Fichiers JavaScript:"
-          find dist/ -name "*.js" -exec ls -lh {} \; | head -10
-        
       - name: 🚀 Déploiement sur GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: build-files
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: false
+          path: dist/
