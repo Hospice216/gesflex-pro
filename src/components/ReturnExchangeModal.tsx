@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { Sale, Product } from "@/integrations/supabase/types"
+import { canAccessStore } from "@/lib/utils/store-permissions"
 import { handleSupabaseError } from "@/lib/utils/supabase-helpers"
 
 interface ReturnExchangeModalProps {
@@ -183,29 +184,117 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
       return
     }
 
+    // Validation côté client: quantité retournée ne doit pas dépasser la quantité vendue
+    const returnedItem = selectedReturnedItem
+    if (!returnedItem) {
+      toast({ title: "Produit manquant", description: "Sélectionnez le produit à retourner", variant: "destructive" })
+      return
+    }
+    if (formData.returned_quantity > (returnedItem.quantity || 0)) {
+      toast({ title: "Quantité invalide", description: "La quantité retournée dépasse la quantité vendue", variant: "destructive" })
+      return
+    }
+
     setLoading(true)
 
     try {
       const returnCode = generateReturnCode()
       const priceDifference = calculatePriceDifference()
 
-      const { error } = await supabase
-        .from("returns_exchanges")
+      if (!userProfile?.id || !userProfile?.role) {
+        toast({ title: "Erreur", description: "Profil utilisateur invalide", variant: "destructive" })
+        setLoading(false)
+        return
+      }
+
+      // Vérifier l'accès au magasin de la vente d'origine (store_id dans saleData)
+      const originalSale = saleData
+      if (!originalSale) {
+        toast({ title: "Erreur", description: "Vente d'origine introuvable", variant: "destructive" })
+        setLoading(false)
+        return
+      }
+      const { data: saleStore } = await supabase.from('sales').select('store_id').eq('id', originalSale.id).single()
+      const hasAccess = saleStore?.store_id
+        ? await canAccessStore(userProfile.id, saleStore.store_id, userProfile.role)
+        : false
+      if (!hasAccess) {
+        toast({
+          title: "Magasin non assigné",
+          description: "Vous devez être assigné au magasin de la vente pour traiter un retour/échange.",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
+
+      // Validation côté client: en cas d'échange, vérifier le stock disponible dans le magasin de la vente
+      if (formData.new_product_id) {
+        const { data: psData, error: psError } = await supabase
+          .from('product_stores')
+          .select('current_stock')
+          .eq('product_id', formData.new_product_id)
+          .eq('store_id', saleStore.store_id)
+          .limit(1)
+        if (psError) {
+          // Ne pas bloquer si la ligne n'existe pas; on traitera comme stock 0
+          console.warn('Erreur lecture stock échange:', psError)
+        }
+        const currentStock = psData && psData.length > 0 ? (psData[0] as any).current_stock as number : 0
+        if (currentStock < formData.new_quantity) {
+          toast({
+            title: 'Stock insuffisant',
+            description: "Stock insuffisant pour le produit d'échange dans ce magasin",
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+      }
+
+      // 1) Créer l'en-tête de retour
+      const { data: createdReturn, error: returnError } = await supabase
+        .from('returns')
         .insert({
           return_code: returnCode,
-          sale_id: saleData.id,
-          original_sale_code: saleData.sale_code,
-          returned_product_id: formData.returned_product_id,
+          original_sale_id: saleData.id,
+          customer_name: saleData.customer_name || 'Client anonyme',
+          customer_email: saleData.customer_email || null,
+          customer_phone: saleData.customer_phone || null,
+          return_reason: formData.reason,
+          return_status: 'pending',
+          processed_by: userProfile.id,
+          processed_at: null,
+        })
+        .select()
+        .single()
+
+      if (returnError) throw returnError
+
+      // 2) Créer la ligne du retour
+      const exchangeProduct = selectedNewProduct
+      const exchangeUnitPrice = exchangeProduct ? exchangeProduct.current_sale_price : null
+      const exchangeTotalPrice = exchangeProduct ? (exchangeUnitPrice as number) * formData.new_quantity : null
+
+      const { error: returnItemError } = await supabase
+        .from('return_items')
+        .insert({
+          return_id: createdReturn.id,
+          original_sale_item_id: returnedItem?.id as string,
+          product_id: returnedItem?.product_id as string,
+          product_name: returnedItem?.products?.name as string,
+          product_sku: returnedItem?.products?.sku as string,
           returned_quantity: formData.returned_quantity,
-          product_condition: formData.product_condition as any,
-          new_product_id: formData.new_product_id || null,
-          new_quantity: formData.new_quantity || 0,
+          original_unit_price: returnedItem?.unit_price as number,
+          original_total_price: (returnedItem?.unit_price as number) * formData.returned_quantity,
+          exchange_product_id: formData.new_product_id || null,
+          exchange_quantity: formData.new_product_id ? formData.new_quantity : null,
+          exchange_unit_price: exchangeUnitPrice,
+          exchange_total_price: exchangeTotalPrice,
           price_difference: priceDifference,
-          reason: formData.reason,
-          processed_by: (await supabase.auth.getUser()).data.user?.id
         })
 
-      if (error) throw error
+      if (returnItemError) throw returnItemError
 
       toast({
         title: "Retour/Échange enregistré",
@@ -216,10 +305,10 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
       onOpenChange(false)
     } catch (error) {
       console.error('Erreur création retour/échange:', error)
-      const errorMessage = handleSupabaseError(error)
+      const result = handleSupabaseError(error, 'create return/exchange')
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: result.error,
         variant: "destructive",
       })
     } finally {
@@ -233,7 +322,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[92vw] max-w-md sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="w-5 h-5" />
@@ -251,7 +340,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
               <CardTitle>1. Rechercher la vente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1">
                   <Label htmlFor="sale_code">Code de vente</Label>
                   <Input
@@ -259,10 +348,11 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                     value={saleCode}
                     onChange={(e) => setSaleCode(e.target.value)}
                     placeholder="Ex: VTE123456"
+                    className="h-10 sm:h-12 text-sm sm:text-base"
                   />
                 </div>
                 <div className="flex items-end">
-                  <Button type="button" onClick={searchSale} disabled={searchLoading}>
+                  <Button type="button" onClick={searchSale} disabled={searchLoading} className="w-full sm:w-auto">
                     {searchLoading ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -303,7 +393,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                     <div className="space-y-2">
                       <Label>Produit</Label>
                       <Select value={formData.returned_product_id} onValueChange={(value) => setFormData(prev => ({ ...prev, returned_product_id: value }))}>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 sm:h-12">
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
@@ -324,13 +414,14 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                         max={selectedReturnedItem?.quantity || 1}
                         value={formData.returned_quantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, returned_quantity: parseInt(e.target.value) || 1 }))}
+                        className="h-10 sm:h-12 text-sm sm:text-base"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label>État du produit</Label>
                       <Select value={formData.product_condition} onValueChange={(value) => setFormData(prev => ({ ...prev, product_condition: value }))}>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 sm:h-12">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -354,7 +445,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                     <div className="space-y-2">
                       <Label>Nouveau produit</Label>
                       <Select value={formData.new_product_id} onValueChange={(value) => setFormData(prev => ({ ...prev, new_product_id: value }))}>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 sm:h-12">
                           <SelectValue placeholder="Aucun échange" />
                         </SelectTrigger>
                         <SelectContent>
@@ -375,6 +466,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                         value={formData.new_quantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, new_quantity: parseInt(e.target.value) || 1 }))}
                         disabled={!formData.new_product_id}
+                        className="h-10 sm:h-12 text-sm sm:text-base disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -405,14 +497,15 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                   onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                   placeholder="Expliquez la raison du retour ou de l'échange..."
                   required
+                  className="text-sm sm:text-base"
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <div className="flex flex-col sm:flex-row justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                   Annuler
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Enregistrer
                 </Button>

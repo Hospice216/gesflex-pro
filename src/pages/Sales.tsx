@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import SaleModal from "@/components/SaleModal"
+import Breadcrumb from "@/components/Breadcrumb"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -31,6 +32,8 @@ export default function Sales() {
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [selectedSale, setSelectedSale] = useState<any>(null)
+  const [salesPage, setSalesPage] = useState(1)
+  const [salesPageSize, setSalesPageSize] = useState<number | 'all'>(20)
   const [filters, setFilters] = useState({
     dateRange: null,
     store: "all",
@@ -85,7 +88,7 @@ export default function Sales() {
         .from("sales")
         .select(`
           *,
-          sale_items(id, quantity, unit_price, total_price),
+          sale_items(id, product_name, product_sku, quantity, unit_price, total_price),
           stores(name)
         `)
         .order("created_at", { ascending: false })
@@ -333,6 +336,14 @@ export default function Sales() {
     }
   }
 
+  const getProductsLabel = (sale: any) => {
+    const items = sale?.sale_items || []
+    if (!items.length) return "—"
+    return items
+      .map((it: any) => [it.product_name, it.product_sku].filter(Boolean).join(" "))
+      .join(", ")
+  }
+
   const getPaymentMethodLabel = (method: string) => {
     switch (method) {
       case "card": return "Carte"
@@ -402,6 +413,20 @@ export default function Sales() {
 
     return filtered
   }, [sales, searchTerm, filters])
+
+  // Pagination côté client
+  const salesTotalPages = salesPageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredSales.length / (salesPageSize as number)))
+  const currentSalesPage = Math.min(salesPage, salesTotalPages)
+  const paginatedSales = salesPageSize === 'all'
+    ? filteredSales
+    : filteredSales.slice(
+        (currentSalesPage - 1) * (salesPageSize as number),
+        currentSalesPage * (salesPageSize as number)
+      )
+
+  useEffect(() => {
+    setSalesPage(1)
+  }, [salesPageSize, searchTerm, filters])
 
   const { totalSales, averageTicket, pendingSales } = useMemo(() => {
     const total = sales.reduce((sum, sale) => sum + (sale.total_amount || 0), 0)
@@ -494,6 +519,13 @@ export default function Sales() {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Breadcrumb */}
+      <Breadcrumb 
+        items={[
+          { label: 'Ventes', icon: undefined }
+        ]} 
+      />
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Ventes</h1>
@@ -546,33 +578,7 @@ export default function Sales() {
           </CardContent>
         </Card>
         
-            {/* Chiffre d'affaires */}
-            <Card className="bg-gradient-card shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Chiffre d'affaires</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(salesStats.todaySales)}</div>
-                <p className="text-xs text-muted-foreground">
-                  {salesStats.todayProductsSold} produits vendus
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Nombre de ventes */}
-        <Card className="bg-gradient-card shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Nombre de ventes</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-                <div className="text-2xl font-bold">{salesStats.todayCount}</div>
-            <p className="text-xs text-muted-foreground">
-                  {formatAmount(salesStats.todaySales)} de chiffre d'affaires
-            </p>
-          </CardContent>
-        </Card>
+            
 
             {/* Panier moyen */}
         <Card className="bg-gradient-card shadow-card">
@@ -588,19 +594,7 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-            {/* En attente */}
-        <Card className="bg-gradient-card shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En attente</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-                <div className="text-2xl font-bold">{pendingSales}</div>
-            <p className="text-xs text-muted-foreground">
-                  {formatAmount(salesStats.todaySales)} de chiffre d'affaires
-            </p>
-          </CardContent>
-        </Card>
+            
 
             {/* Total du mois */}
         <Card className="bg-gradient-card shadow-card">
@@ -667,7 +661,7 @@ export default function Sales() {
             placeholder="Rechercher une vente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
           />
         </div>
         <Popover open={showFilters} onOpenChange={setShowFilters}>
@@ -706,21 +700,7 @@ export default function Sales() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Méthode de paiement</label>
-                <Select value={filters.paymentMethod} onValueChange={(value) => setFilters(prev => ({ ...prev, paymentMethod: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes les méthodes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les méthodes</SelectItem>
-                    <SelectItem value="cash">Espèces</SelectItem>
-                    <SelectItem value="card">Carte</SelectItem>
-                    <SelectItem value="check">Chèque</SelectItem>
-                    <SelectItem value="transfer">Virement</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              
               <div className="space-y-2">
                 <label className="text-sm font-medium">Statut</label>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
@@ -751,8 +731,26 @@ export default function Sales() {
       {/* Sales List */}
       <Card className="bg-gradient-card shadow-card">
         <CardHeader>
-          <CardTitle>Historique des ventes</CardTitle>
-          <CardDescription>Liste de toutes vos transactions</CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle>Historique des ventes</CardTitle>
+              <CardDescription>Liste de toutes vos transactions</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Par page</span>
+              <Select value={String(salesPageSize)} onValueChange={(v) => setSalesPageSize(v === 'all' ? 'all' : parseInt(v))}>
+                <SelectTrigger className="h-8 w-[92px]">
+                  <SelectValue placeholder="20" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -796,38 +794,36 @@ export default function Sales() {
                   )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Magasin</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Paiement</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Date</TableHead>
+            <>
+              {/* Desktop table */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Magasin</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Produits</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Date</TableHead>
                       <TableHead>Vendeur</TableHead>
                       <TableHead>Quantité vendue</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.sale_code}</TableCell>
-                    <TableCell>{sale.customer_name || "Client anonyme"}</TableCell>
-                    <TableCell>{sale.stores?.name}</TableCell>
-                    <TableCell className="font-medium">{formatAmount(sale.total_amount)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {getPaymentMethodIcon(sale.payment_method)}
-                        <span className="text-sm">{getPaymentMethodLabel(sale.payment_method)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(sale.status || "completed")}
-                    </TableCell>
-                    <TableCell>{new Date(sale.created_at).toLocaleDateString()}</TableCell>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedSales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-medium">{sale.sale_code}</TableCell>
+                        <TableCell>{sale.customer_name || "Client anonyme"}</TableCell>
+                        <TableCell>{sale.stores?.name}</TableCell>
+                        <TableCell className="font-medium">{formatAmount(sale.total_amount)}</TableCell>
+                        <TableCell className="max-w-[280px] truncate">{getProductsLabel(sale)}</TableCell>
+                        <TableCell>
+                          {getStatusBadge(sale.status || "completed")}
+                        </TableCell>
+                        <TableCell>{new Date(sale.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="font-medium">
                           {sale.users ? 
                             `${sale.users.first_name || ''} ${sale.users.last_name || ''}`.trim() || 
@@ -838,7 +834,88 @@ export default function Sales() {
                         <TableCell className="font-medium">
                           {sale.sale_items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
                         </TableCell>
-                    <TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewDetails(sale)}>
+                                Voir détails
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
+                                Imprimer reçu
+                              </DropdownMenuItem>
+                              {(canHandleReturns || canManageOwnSale(sale)) && (
+                                <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
+                                  Retour/Échange
+                                </DropdownMenuItem>
+                              )}
+                              {(canCancelSales || canManageOwnSale(sale)) && (
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleCancelSale(sale)}
+                                >
+                                  Annuler
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="space-y-3 sm:hidden">
+                {paginatedSales.map((sale) => (
+                  <div key={sale.id} className="border rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{sale.sale_code}</p>
+                        <p className="text-sm text-muted-foreground truncate">{sale.customer_name || "Client anonyme"}</p>
+                      </div>
+                      <div>
+                        {getStatusBadge(sale.status || "completed")}
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Magasin</span>
+                        <div className="font-medium">{sale.stores?.name || '—'}</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground">Montant</span>
+                        <div className="font-medium">{formatAmount(sale.total_amount)}</div>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Produits</span>
+                        <div className="font-medium truncate">{getProductsLabel(sale)}</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground">Date</span>
+                        <div className="font-medium">{new Date(sale.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Vendeur</span>
+                        <div className="font-medium">
+                          {sale.users ? 
+                            `${sale.users.first_name || ''} ${sale.users.last_name || ''}`.trim() || 
+                            sale.users.email || 
+                            "Inconnu"
+                          : "Inconnu"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground">Qté vendue</span>
+                        <div className="font-medium">{sale.sale_items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -852,26 +929,44 @@ export default function Sales() {
                           <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
                             Imprimer reçu
                           </DropdownMenuItem>
-                              {(canHandleReturns || canManageOwnSale(sale)) && (
-                          <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
-                            Retour/Échange
-                          </DropdownMenuItem>
-                              )}
-                              {(canCancelSales || canManageOwnSale(sale)) && (
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleCancelSale(sale)}
-                          >
-                            Annuler
-                          </DropdownMenuItem>
-                              )}
+                          {(canHandleReturns || canManageOwnSale(sale)) && (
+                            <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
+                              Retour/Échange
+                            </DropdownMenuItem>
+                          )}
+                          {(canCancelSales || canManageOwnSale(sale)) && (
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleCancelSale(sale)}>
+                              Annuler
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Pagination */}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentSalesPage <= 1 || salesPageSize === 'all'}
+                  onClick={() => setSalesPage(p => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Button>
+                <span className="text-sm text-muted-foreground">Page {currentSalesPage} / {salesTotalPages}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentSalesPage >= salesTotalPages || salesPageSize === 'all'}
+                  onClick={() => setSalesPage(p => Math.min(salesTotalPages, p + 1))}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

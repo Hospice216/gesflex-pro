@@ -235,10 +235,10 @@ export default function StoreTransferModal({
       }
     }
 
-    if (!user) {
+    if (!userProfile?.id) {
       toast({
         title: "Erreur",
-        description: "Utilisateur non connecté",
+        description: "Profil utilisateur non disponible",
         variant: "destructive",
       })
       return
@@ -270,7 +270,7 @@ export default function StoreTransferModal({
         product_id: formData.product_id,
         quantity: formData.quantity,
         notes: formData.notes,
-        created_by: user.id
+        created_by: userProfile.id
       })
 
       if (!transferResult.success) {
@@ -335,7 +335,7 @@ export default function StoreTransferModal({
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-access" disabled>
                     Aucun magasin accessible
                   </SelectItem>
                 )}
@@ -371,7 +371,7 @@ export default function StoreTransferModal({
                       </SelectItem>
                     ))
                 ) : (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-available" disabled>
                     Aucun magasin disponible
                   </SelectItem>
                 )}

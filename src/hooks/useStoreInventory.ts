@@ -30,20 +30,68 @@ async function fetchStoreInventory(
   filters: InventoryFilters = {}
 ): Promise<InventoryItem[]> {
   try {
-    // Utiliser la nouvelle fonction PostgreSQL optimisée
-    const { data, error } = await supabase
-      .rpc('get_store_inventory', {
-        store_uuid: storeId,
-        category_filter: filters.category_id || null,
-        stock_status_filter: filters.stock_status || null,
-        search_term: filters.search_term || null
-      })
+    // ✅ CORRIGÉ : Requête directe au lieu de RPC
+    let query = supabase
+      .from('product_stores')
+      .select(`
+        product_id,
+        current_stock,
+        min_stock,
+        max_stock,
+        products!inner(
+          id,
+          name,
+          sku,
+          is_active,
+          categories(name)
+        )
+      `)
+      .eq('products.is_active', true)
+
+    if (storeId && storeId !== 'all') {
+      query = query.eq('store_id', storeId)
+    }
+
+    // Ajouter les filtres si fournis
+    if (filters.category_id) {
+      query = query.eq('products.categories.id', filters.category_id)
+    }
+    if (filters.stock_status) {
+      switch (filters.stock_status) {
+        case 'low_stock':
+          query = query.lte('current_stock', 'min_stock')
+          break
+        case 'out_of_stock':
+          query = query.eq('current_stock', 0)
+          break
+        case 'alert_stock':
+          query = query.lte('current_stock', 'min_stock')
+          break
+      }
+    }
+    if (filters.search_term) {
+      query = query.or(`products.name.ilike.%${filters.search_term}%,products.sku.ilike.%${filters.search_term}%`)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       throw new Error(`Erreur lors de la récupération de l'inventaire: ${error.message}`)
     }
 
-    return data || []
+    // Transformer les données
+    return (data || []).map(item => ({
+      product_id: item.product_id,
+      product_name: item.products?.name || 'Produit inconnu',
+      sku: item.products?.sku || 'SKU inconnu',
+      current_stock: item.current_stock || 0,
+      min_stock: item.min_stock || 0,
+      max_stock: item.max_stock || 0,
+      category_name: item.products?.categories?.name || 'Sans catégorie',
+      unit_symbol: 'unité', // Valeur par défaut
+      stock_status: (item.current_stock || 0) <= (item.min_stock || 0) ? 'low_stock' : 'normal_stock',
+      alert_stock: item.min_stock || 0
+    }))
   } catch (error: any) {
     console.error('Erreur fetchStoreInventory:', error)
     throw new Error(error.message || 'Erreur lors de la récupération de l\'inventaire')
@@ -51,13 +99,38 @@ async function fetchStoreInventory(
 }
 
 // Hook principal pour l'inventaire
-export function useStoreInventory(storeId: string, filters: InventoryFilters = {}) {
+export function useStoreInventory(storeId: string | undefined, filters: InventoryFilters = {}) {
   const { userProfile } = useAuth()
   
   return useQuery({
     queryKey: ['store-inventory', storeId, filters],
-    queryFn: () => fetchStoreInventory(storeId, filters),
-    enabled: !!storeId && !!userProfile,
+    queryFn: async () => {
+      if (!storeId || storeId === 'all') {
+        // Si pas de storeId, récupérer l'inventaire global
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+        
+        if (error) throw error
+        
+        return data?.map(product => ({
+          product_id: product.id,
+          product_name: product.name,
+          sku: product.sku,
+          current_stock: product.current_stock || 0,
+          min_stock: product.min_stock || 0,
+          max_stock: product.max_stock || 0,
+          category_name: product.category_name || 'Sans catégorie',
+          unit_symbol: product.unit_symbol || 'unité',
+          stock_status: product.current_stock <= (product.min_stock || 0) ? 'low_stock' : 'normal_stock',
+          alert_stock: product.min_stock || 0
+        })) || []
+      }
+      
+      return fetchStoreInventory(storeId, filters)
+    },
+    enabled: !!userProfile,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000,    // 5 minutes
     refetchOnWindowFocus: false,
@@ -73,17 +146,38 @@ export function useLowStockProducts(storeId: string) {
   return useQuery({
     queryKey: ['low-stock-products', storeId],
     queryFn: async () => {
+      // ✅ CORRIGÉ : Requête directe au lieu de la vue
       const { data, error } = await supabase
-        .from('low_stock_products_view')
-        .select('*')
+        .from('product_stores')
+        .select(`
+          product_id,
+          current_stock,
+          min_stock,
+          products!inner(
+            id,
+            name,
+            sku,
+            is_active
+          )
+        `)
         .eq('store_id', storeId)
+        .eq('products.is_active', true)
+        .lte('current_stock', 'min_stock')
         .order('current_stock', { ascending: true })
 
       if (error) {
         throw new Error(`Erreur lors de la récupération des produits en rupture: ${error.message}`)
       }
 
-      return data || []
+      // Transformer les données
+      return (data || []).map(item => ({
+        product_id: item.product_id,
+        product_name: item.products?.name || 'Produit inconnu',
+        sku: item.products?.sku || 'SKU inconnu',
+        current_stock: item.current_stock || 0,
+        min_stock: item.min_stock || 0,
+        store_id: storeId
+      }))
     },
     enabled: !!storeId && !!userProfile,
     staleTime: 1 * 60 * 1000, // 1 minute
@@ -148,10 +242,19 @@ export function useInventoryStats(storeId: string) {
   return useQuery({
     queryKey: ['inventory-stats', storeId],
     queryFn: async () => {
+      // ✅ CORRIGÉ : Requête directe au lieu de la vue
       const { data, error } = await supabase
-        .from('product_inventory_view')
-        .select('current_stock, stock_status, expiration_status')
+        .from('product_stores')
+        .select(`
+          current_stock,
+          min_stock,
+          products!inner(
+            id,
+            is_active
+          )
+        `)
         .eq('store_id', storeId)
+        .eq('products.is_active', true)
 
       if (error) {
         throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`)
@@ -161,11 +264,11 @@ export function useInventoryStats(storeId: string) {
       const stats = {
         total_products: data.length,
         total_stock: data.reduce((sum, item) => sum + (item.current_stock || 0), 0),
-        low_stock_count: data.filter(item => item.stock_status === 'low_stock').length,
-        out_of_stock_count: data.filter(item => item.stock_status === 'out_of_stock').length,
-        alert_stock_count: data.filter(item => item.stock_status === 'alert_stock').length,
-        expiring_soon_count: data.filter(item => item.expiration_status === 'expiring_soon').length,
-        expired_count: data.filter(item => item.expiration_status === 'expired').length,
+        low_stock_count: data.filter(item => (item.current_stock || 0) <= (item.min_stock || 0)).length,
+        out_of_stock_count: data.filter(item => (item.current_stock || 0) === 0).length,
+        alert_stock_count: data.filter(item => (item.current_stock || 0) <= (item.min_stock || 0)).length,
+        expiring_soon_count: 0, // Pas de gestion d'expiration pour l'instant
+        expired_count: 0,       // Pas de gestion d'expiration pour l'instant
       }
 
       return stats

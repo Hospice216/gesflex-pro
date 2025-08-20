@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, Filter, MoreHorizontal, Package, CheckCircle, Clock, AlertCircle, X, RefreshCw, AlertTriangle } from "lucide-react"
+import { Plus, Search, Filter, MoreHorizontal, Package, CheckCircle, Clock, AlertCircle, X, RefreshCw, AlertTriangle, Download } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrivalValidationModal } from "@/components/ArrivalValidationModal"
@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext"
 export default function Arrivals() {
   const { toast } = useToast()
   const { userProfile } = useAuth()
+  const isManager = userProfile?.role === 'Manager'
   const [searchTerm, setSearchTerm] = useState("")
   const [pendingItems, setPendingItems] = useState<any[]>([])
   const [historyItems, setHistoryItems] = useState<any[]>([])
@@ -36,9 +37,14 @@ export default function Arrivals() {
     supplier: "all",
     store: "all",
     dateRange: null,
-    status: "all"
+    status: "all",
+    type: "all" as 'all' | 'Achat' | 'Transfert'
   })
   const [filterModalOpen, setFilterModalOpen] = useState(false)
+  // Pagination & tri (historique)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyPageSize, setHistoryPageSize] = useState<number | 'all'>(20)
+  const [historySort, setHistorySort] = useState<'date_desc' | 'date_asc'>('date_desc')
 
   // ✅ SOLUTION : Vérification des permissions
   const canViewArrivals = userProfile?.role && ['Vendeur', 'Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
@@ -184,7 +190,8 @@ export default function Arrivals() {
       supplier: "all",
       store: "all",
       dateRange: null,
-      status: "all"
+      status: "all",
+      type: "all"
     })
   }
 
@@ -211,6 +218,11 @@ export default function Arrivals() {
         )
       }
     })
+
+    // Filtre par type (achat/transfert)
+    if (filters.type && filters.type !== "all") {
+      filtered = filtered.filter(item => item.type === filters.type)
+    }
 
     // Filtre par fournisseur
     if (filters.supplier && filters.supplier !== "all") {
@@ -263,6 +275,25 @@ export default function Arrivals() {
 
   const filteredPending = getFilteredItems(pendingItems)
   const filteredValidated = getFilteredItems(historyItems)
+  // Tri
+  const sortedValidated = [...filteredValidated].sort((a, b) => {
+    const da = new Date(a.received_at || a.created_at).getTime()
+    const db = new Date(b.received_at || b.created_at).getTime()
+    return historySort === 'date_desc' ? db - da : da - db
+  })
+  // Pagination
+  const historyTotalPages = historyPageSize === 'all' ? 1 : Math.max(1, Math.ceil(sortedValidated.length / historyPageSize))
+  const currentHistoryPage = Math.min(historyPage, historyTotalPages)
+  const paginatedValidated = historyPageSize === 'all'
+    ? sortedValidated
+    : sortedValidated.slice(
+        (currentHistoryPage - 1) * (historyPageSize as number),
+        currentHistoryPage * (historyPageSize as number)
+      )
+
+  useEffect(() => {
+    setHistoryPage(1)
+  }, [historyPageSize, filters])
 
   // ✅ SOLUTION : Options uniques optimisées
   const uniqueSuppliers = [...new Set(
@@ -278,6 +309,72 @@ export default function Arrivals() {
       .map(p => p.stores?.name || p.purchases?.stores?.name)
       .filter(Boolean)
   )]
+
+  // Export CSV de l'historique filtré
+  const exportHistoryCSV = () => {
+    const rows = filteredValidated
+    const headers = [
+      'Type',
+      ...(userProfile?.role === 'Manager' ? [] : ['Fournisseur']),
+      'Produit', 'Quantité', 'Date'
+    ]
+    const csv = [headers.join(',')].concat(
+      rows.map(item => {
+        const fournisseur = item.type==='Achat' ? (item.purchases?.suppliers?.name || '') : ''
+        const produit = item.type==='Achat' ? (item.purchases?.products?.name || '') : (item.product_name || item.products?.name || '')
+        const qty = item.received_quantity ?? ''
+        const d = new Date(item.received_at || item.created_at).toLocaleDateString()
+        const cols = [item.type, ...(userProfile?.role === 'Manager' ? [] : [fournisseur]), produit, qty, d]
+        return cols.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+      })
+    ).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `arrivages_historique_${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Export PDF (impression HTML)
+  const exportHistoryPDF = () => {
+    const w = window.open('', '_blank')
+    if (!w) return
+    const rows = filteredValidated
+    const showSupplier = userProfile?.role !== 'Manager'
+    const tableHeaders = `
+      <tr>
+        <th style="text-align:left;padding:6px">Type</th>
+        ${showSupplier ? '<th style="text-align:left;padding:6px">Fournisseur</th>' : ''}
+        <th style="text-align:left;padding:6px">Produit</th>
+        <th style="text-align:right;padding:6px">Quantité</th>
+        <th style="text-align:left;padding:6px">Date</th>
+      </tr>`
+    const tableRows = rows.map(item => {
+      const fournisseur = item.type==='Achat' ? (item.purchases?.suppliers?.name || '') : ''
+      const produit = item.type==='Achat' ? (item.purchases?.products?.name || '') : (item.product_name || item.products?.name || '')
+      const qty = item.received_quantity ?? ''
+      const d = new Date(item.received_at || item.created_at).toLocaleDateString()
+      return `
+        <tr>
+          <td style="padding:6px">${item.type}</td>
+          ${showSupplier ? `<td style=\"padding:6px\">${fournisseur}</td>` : ''}
+          <td style="padding:6px">${produit}</td>
+          <td style="padding:6px;text-align:right">${qty}</td>
+          <td style="padding:6px">${d}</td>
+        </tr>`
+    }).join('')
+    w.document.write(`
+      <html><head><title>Historique des arrivages</title></head>
+      <body>
+        <h3>Historique des arrivages</h3>
+        <table style="width:100%;border-collapse:collapse" border="1">${tableHeaders}${tableRows}</table>
+      </body></html>`)
+    w.document.close()
+    w.focus()
+    w.print()
+  }
 
   // ✅ SOLUTION : Affichage d'erreur avec possibilité de retry
   if (error && !canViewArrivals) {
@@ -359,7 +456,7 @@ export default function Arrivals() {
                 placeholder="Rechercher un arrivage..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
               />
             </div>
             <Popover open={filterModalOpen} onOpenChange={setFilterModalOpen}>
@@ -394,21 +491,36 @@ export default function Arrivals() {
                   
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium">Fournisseur</label>
-                      <Select value={filters.supplier} onValueChange={(value) => setFilters(prev => ({ ...prev, supplier: value }))}>
+                      <label className="text-sm font-medium">Type</label>
+                      <Select value={filters.type} onValueChange={(value: 'all' | 'Achat' | 'Transfert') => setFilters(prev => ({ ...prev, type: value }))}>
                         <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Tous les fournisseurs" />
+                          <SelectValue placeholder="Tous les types" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">Tous les fournisseurs</SelectItem>
-                          {uniqueSuppliers.map((supplier) => (
-                            <SelectItem key={supplier} value={supplier}>
-                              {supplier}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="all">Tous les types</SelectItem>
+                          <SelectItem value="Achat">Achat</SelectItem>
+                          <SelectItem value="Transfert">Transfert</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    {!isManager && (
+                      <div>
+                        <label className="text-sm font-medium">Fournisseur</label>
+                        <Select value={filters.supplier} onValueChange={(value) => setFilters(prev => ({ ...prev, supplier: value }))}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Tous les fournisseurs" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Tous les fournisseurs</SelectItem>
+                            {uniqueSuppliers.map((supplier) => (
+                              <SelectItem key={supplier} value={supplier}>
+                                {supplier}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div>
                       <label className="text-sm font-medium">Magasin</label>
@@ -519,47 +631,97 @@ export default function Arrivals() {
                       </p>
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Fournisseur</TableHead>
-                          <TableHead>Produit</TableHead>
-                          <TableHead>Magasin</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Desktop table */}
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Type</TableHead>
+                              {!isManager && <TableHead>Fournisseur</TableHead>}
+                              <TableHead>Produit</TableHead>
+                              <TableHead>Magasin</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredPending.map((item) => (
+                              <TableRow key={`${item.type}-${item.id}`}>
+                                <TableCell>{item.type}</TableCell>
+                                {!isManager && (
+                                  <TableCell>{item.type==='Achat' ? (item.suppliers?.name || item.purchases?.suppliers?.name) : '—'}</TableCell>
+                                )}
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{item.type==='Achat' ? (item.products?.name || item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
+                                    {item.type==='Achat' && (
+                                      <p className="text-sm text-muted-foreground">SKU: {item.products?.sku || item.purchases?.products?.sku}</p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{item.type==='Achat' ? (item.stores?.name || item.purchases?.stores?.name) : '—'}</TableCell>
+                                <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                  {item.type==='Achat' ? (
+                                    <Button size="sm" onClick={() => handleValidateArrival(item)} className="gap-1">
+                                      <CheckCircle className="w-3 h-3" /> Valider
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" onClick={() => { setSelectedTransfer(item); setTransferModalOpen(true); }} className="gap-1">
+                                      <CheckCircle className="w-3 h-3" /> Réceptionner
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="space-y-3 sm:hidden">
                         {filteredPending.map((item) => (
-                          <TableRow key={`${item.type}-${item.id}`}>
-                            <TableCell>{item.type}</TableCell>
-                            <TableCell>{item.type==='Achat' ? (item.suppliers?.name || item.purchases?.suppliers?.name) : '—'}</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{item.type==='Achat' ? (item.products?.name || item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
+                          <div key={`${item.type}-${item.id}`} className="border rounded-lg p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs uppercase text-muted-foreground">{item.type}</p>
+                                <p className="font-medium truncate">{item.type==='Achat' ? (item.products?.name || item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
                                 {item.type==='Achat' && (
-                                  <p className="text-sm text-muted-foreground">SKU: {item.products?.sku || item.purchases?.products?.sku}</p>
+                                  <p className="text-xs text-muted-foreground">SKU: {item.products?.sku || item.purchases?.products?.sku}</p>
                                 )}
                               </div>
-                            </TableCell>
-                            <TableCell>{item.type==='Achat' ? (item.stores?.name || item.purchases?.stores?.name) : '—'}</TableCell>
-                            <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell>
+                              <div>
+                                <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                              {!isManager && (
+                                <div>
+                                  <span className="text-muted-foreground">Fournisseur</span>
+                                  <div className="font-medium">{item.type==='Achat' ? (item.suppliers?.name || item.purchases?.suppliers?.name) : '—'}</div>
+                                </div>
+                              )}
+                              <div className="text-right">
+                                <span className="text-muted-foreground">Magasin</span>
+                                <div className="font-medium">{item.type==='Achat' ? (item.stores?.name || item.purchases?.stores?.name) : '—'}</div>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex items-center justify-end">
                               {item.type==='Achat' ? (
-                                <Button size="sm" onClick={() => handleValidateArrival(item)} className="gap-1">
+                                <Button size="sm" onClick={() => handleValidateArrival(item)} className="gap-1 w-full sm:w-auto">
                                   <CheckCircle className="w-3 h-3" /> Valider
                                 </Button>
                               ) : (
-                                <Button size="sm" onClick={() => { setSelectedTransfer(item); setTransferModalOpen(true); }} className="gap-1">
+                                <Button size="sm" onClick={() => { setSelectedTransfer(item); setTransferModalOpen(true); }} className="gap-1 w-full sm:w-auto">
                                   <CheckCircle className="w-3 h-3" /> Réceptionner
                                 </Button>
                               )}
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -568,8 +730,36 @@ export default function Arrivals() {
             <TabsContent value="history">
               <Card className="bg-gradient-card shadow-card">
                 <CardHeader>
-                  <CardTitle>Historique des arrivages</CardTitle>
-                  <CardDescription>Achats validés et réceptions de transferts</CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <CardTitle>Historique des arrivages</CardTitle>
+                      <CardDescription>Achats validés et réceptions de transferts</CardDescription>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Par page</span>
+                        <Select value={String(historyPageSize)} onValueChange={(v) => setHistoryPageSize(v === 'all' ? 'all' : parseInt(v))}>
+                          <SelectTrigger className="h-8 w-[92px]">
+                            <SelectValue placeholder="20" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={exportHistoryCSV} className="gap-2">
+                          <Download className="w-4 h-4" /> CSV
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={exportHistoryPDF} className="gap-2">
+                          <Download className="w-4 h-4" /> PDF
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {historyLoading ? (
@@ -595,56 +785,117 @@ export default function Arrivals() {
                       </p>
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Fournisseur</TableHead>
-                          <TableHead>Produit</TableHead>
-                          <TableHead>Quantité</TableHead>
-                          <TableHead>Statut</TableHead>
-                          <TableHead>Validé par</TableHead>
-                          <TableHead>Date validation</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredValidated.map((item) => (
-                          <TableRow key={`${item.type}-${item.id}`}>
-                            <TableCell>{item.type}</TableCell>
-                            <TableCell>{item.type==='Achat' ? (item.purchases?.suppliers?.name) : '—'}</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{item.type==='Achat' ? (item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
+                    <>
+                      {/* Desktop table */}
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Type</TableHead>
+                              {!isManager && <TableHead>Fournisseur</TableHead>}
+                              <TableHead>Produit</TableHead>
+                              <TableHead>Quantité</TableHead>
+                              <TableHead>Statut</TableHead>
+                              <TableHead>Validé par</TableHead>
+                              <TableHead>Date validation</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedValidated.map((item) => (
+                              <TableRow key={`${item.type}-${item.id}`}>
+                                <TableCell>{item.type}</TableCell>
+                                {!isManager && (
+                                  <TableCell>{item.type==='Achat' ? (item.purchases?.suppliers?.name) : '—'}</TableCell>
+                                )}
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{item.type==='Achat' ? (item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
+                                    {item.type==='Achat' && (
+                                      <p className="text-sm text-muted-foreground">SKU: {item.purchases?.products?.sku}</p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span>Reçu: {item.received_quantity}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {getStatusBadge(true, false)}
+                                </TableCell>
+                                <TableCell>
+                                  N/A
+                                </TableCell>
+                                <TableCell>
+                                  {new Date(item.received_at || item.created_at).toLocaleDateString()}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="space-y-3 sm:hidden">
+                        {paginatedValidated.map((item) => (
+                          <div key={`${item.type}-${item.id}`} className="border rounded-lg p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs uppercase text-muted-foreground">{item.type}</p>
+                                <p className="font-medium truncate">{item.type==='Achat' ? (item.purchases?.products?.name) : (item.product_name || item.products?.name)}</p>
                                 {item.type==='Achat' && (
-                                  <p className="text-sm text-muted-foreground">SKU: {item.purchases?.products?.sku}</p>
+                                  <p className="text-xs text-muted-foreground">SKU: {item.purchases?.products?.sku}</p>
                                 )}
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              {item.type==='Achat' ? (
-                                <div className="flex items-center gap-2">
-                                  <span>Reçu: {item.received_quantity}</span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <span>Reçu: {item.received_quantity}</span>
+                              <div>
+                                {getStatusBadge(true, false)}
+                              </div>
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                              {!isManager && (
+                                <div>
+                                  <span className="text-muted-foreground">Fournisseur</span>
+                                  <div className="font-medium">{item.type==='Achat' ? (item.purchases?.suppliers?.name) : '—'}</div>
                                 </div>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(true, false)}
-                            </TableCell>
-                            <TableCell>
-                              {/* Optionnel: afficher le validateur si joint disponible */}
-                              N/A
-                            </TableCell>
-                            <TableCell>
-                              {new Date(item.received_at || item.created_at).toLocaleDateString()}
-                            </TableCell>
-                          </TableRow>
+                              <div className="text-right">
+                                <span className="text-muted-foreground">Reçu</span>
+                                <div className="font-medium">{item.received_quantity}</div>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Date</span>
+                                <div className="font-medium">{new Date(item.received_at || item.created_at).toLocaleDateString()}</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-muted-foreground">Validé par</span>
+                                <div className="font-medium">N/A</div>
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+
+                      {/* Pagination controls */}
+                      <div className="mt-4 flex items-center justify-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentHistoryPage <= 1}
+                          onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                        >
+                          Précédent
+                        </Button>
+                        <span className="text-sm text-muted-foreground">Page {currentHistoryPage} / {historyTotalPages}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentHistoryPage >= historyTotalPages}
+                          onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                        >
+                          Suivant
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>

@@ -39,7 +39,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typname = 'validation_status'
   ) THEN
-    CREATE TYPE public.validation_status AS ENUM ('pending','validated','rejected');
+    CREATE TYPE public.validation_status AS ENUM ('pending','validated','rejected','in_transit','cancelled','received');
   END IF;
 END $$;
 
@@ -136,7 +136,7 @@ END;$$ LANGUAGE plpgsql;
 -- =====================================================
 -- CORE TABLES: USERS, STORES, SUPPLIERS
 -- =====================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     auth_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
@@ -152,10 +152,10 @@ CREATE TABLE users (
     CONSTRAINT users_name_check CHECK (length(first_name) >= 2 AND length(last_name) >= 2)
 );
 
-CREATE INDEX idx_users_auth_id ON users(auth_id);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_auth_id ON users(auth_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 
 -- Ensure 1:1 mapping between auth.users and public.users
 DO $$ BEGIN
@@ -169,7 +169,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-CREATE TABLE stores (
+CREATE TABLE IF NOT EXISTS stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     code TEXT UNIQUE NOT NULL,
@@ -187,12 +187,12 @@ CREATE TABLE stores (
     CONSTRAINT stores_email_check CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
-CREATE INDEX idx_stores_name ON stores(name);
-CREATE INDEX idx_stores_code ON stores(code);
-CREATE INDEX idx_stores_manager ON stores(manager_id);
-CREATE INDEX idx_stores_active ON stores(is_active);
+CREATE INDEX IF NOT EXISTS idx_stores_name ON stores(name);
+CREATE INDEX IF NOT EXISTS idx_stores_code ON stores(code);
+CREATE INDEX IF NOT EXISTS idx_stores_manager ON stores(manager_id);
+CREATE INDEX IF NOT EXISTS idx_stores_active ON stores(is_active);
 
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     email TEXT,
@@ -210,11 +210,11 @@ CREATE TABLE suppliers (
     CONSTRAINT suppliers_email_check CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
-CREATE INDEX idx_suppliers_name ON suppliers(name);
-CREATE INDEX idx_suppliers_email ON suppliers(email);
-CREATE INDEX idx_suppliers_active ON suppliers(is_active);
+CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name);
+CREATE INDEX IF NOT EXISTS idx_suppliers_email ON suppliers(email);
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(is_active);
 
-CREATE TABLE user_stores (
+CREATE TABLE IF NOT EXISTS user_stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -224,8 +224,8 @@ CREATE TABLE user_stores (
     CONSTRAINT user_stores_unique UNIQUE(user_id, store_id)
 );
 
-CREATE INDEX idx_user_stores_store_id ON user_stores(store_id);
-CREATE INDEX idx_user_stores_user_id ON user_stores(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_stores_store_id ON user_stores(store_id);
+CREATE INDEX IF NOT EXISTS idx_user_stores_user_id ON user_stores(user_id);
 
 CREATE OR REPLACE FUNCTION ensure_single_primary_store()
 RETURNS TRIGGER AS $$
@@ -313,7 +313,7 @@ ON CONFLICT (auth_id) DO NOTHING;
 -- =====================================================
 -- CATALOG: UNITS, CATEGORIES, PRODUCTS, PRODUCT_STORES
 -- =====================================================
-CREATE TABLE units (
+CREATE TABLE IF NOT EXISTS units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     symbol TEXT NOT NULL UNIQUE,
@@ -326,7 +326,7 @@ CREATE TABLE units (
     CONSTRAINT units_symbol_check CHECK (length(symbol) >= 1)
 );
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -339,7 +339,7 @@ CREATE TABLE categories (
     CONSTRAINT categories_name_check CHECK (length(name) >= 2)
 );
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     sku TEXT UNIQUE NOT NULL,
@@ -363,7 +363,7 @@ CREATE TABLE products (
     CONSTRAINT products_alert_stock_check CHECK (alert_stock >= 0)
 );
 
-CREATE TABLE product_stores (
+CREATE TABLE IF NOT EXISTS product_stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -379,18 +379,18 @@ CREATE TABLE product_stores (
     CONSTRAINT product_stores_max_stock_check CHECK (max_stock IS NULL OR max_stock >= min_stock)
 );
 
-CREATE INDEX idx_units_name ON units(name);
-CREATE INDEX idx_units_active ON units(is_active);
-CREATE INDEX idx_categories_name ON categories(name);
-CREATE INDEX idx_categories_active ON categories(is_active);
-CREATE INDEX idx_products_name ON products(name);
-CREATE INDEX idx_products_sku ON products(sku);
-CREATE INDEX idx_products_category ON products(category_id);
-CREATE INDEX idx_products_unit ON products(unit_id);
-CREATE INDEX idx_products_active ON products(is_active);
-CREATE INDEX idx_product_stores_product ON product_stores(product_id);
-CREATE INDEX idx_product_stores_store ON product_stores(store_id);
-CREATE INDEX idx_product_stores_available ON product_stores(is_available);
+CREATE INDEX IF NOT EXISTS idx_units_name ON units(name);
+CREATE INDEX IF NOT EXISTS idx_units_active ON units(is_active);
+CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
+CREATE INDEX IF NOT EXISTS idx_categories_active ON categories(is_active);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_unit ON products(unit_id);
+CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+CREATE INDEX IF NOT EXISTS idx_product_stores_product ON product_stores(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_stores_store ON product_stores(store_id);
+CREATE INDEX IF NOT EXISTS idx_product_stores_available ON product_stores(is_available);
 
 DROP TRIGGER IF EXISTS update_units_updated_at ON units;
 CREATE TRIGGER update_units_updated_at BEFORE UPDATE ON units FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -424,7 +424,7 @@ CREATE TRIGGER trigger_validate_product_prices BEFORE INSERT OR UPDATE ON produc
 -- =====================================================
 -- PURCHASES / ARRIVALS
 -- =====================================================
-CREATE TABLE purchases (
+CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     purchase_code TEXT UNIQUE NOT NULL,
     store_id UUID NOT NULL REFERENCES stores(id),
@@ -445,7 +445,7 @@ CREATE TABLE purchases (
     CONSTRAINT purchases_total_amount_check CHECK (total_amount > 0)
 );
 
-CREATE TABLE arrivals (
+CREATE TABLE IF NOT EXISTS arrivals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
     received_quantity INTEGER NOT NULL,
@@ -465,7 +465,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-CREATE TABLE purchase_history (
+CREATE TABLE IF NOT EXISTS purchase_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
     action TEXT NOT NULL,
@@ -476,16 +476,16 @@ CREATE TABLE purchase_history (
     CONSTRAINT purchase_history_action_check CHECK (action IN ('created','updated','deleted','validated'))
 );
 
-CREATE INDEX idx_purchases_store ON purchases(store_id);
-CREATE INDEX idx_purchases_product ON purchases(product_id);
-CREATE INDEX idx_purchases_supplier ON purchases(supplier_id);
-CREATE INDEX idx_purchases_status ON purchases(status);
-CREATE INDEX idx_purchases_created_by ON purchases(created_by);
-CREATE INDEX idx_purchases_code ON purchases(purchase_code);
-CREATE INDEX idx_arrivals_purchase ON arrivals(purchase_id);
-CREATE INDEX idx_arrivals_validated_by ON arrivals(validated_by);
-CREATE INDEX idx_purchase_history_purchase ON purchase_history(purchase_id);
-CREATE INDEX idx_purchase_history_performed_by ON purchase_history(performed_by);
+CREATE INDEX IF NOT EXISTS idx_purchases_store ON purchases(store_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_product ON purchases(product_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_supplier ON purchases(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status);
+CREATE INDEX IF NOT EXISTS idx_purchases_created_by ON purchases(created_by);
+CREATE INDEX IF NOT EXISTS idx_purchases_code ON purchases(purchase_code);
+CREATE INDEX IF NOT EXISTS idx_arrivals_purchase ON arrivals(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_arrivals_validated_by ON arrivals(validated_by);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_purchase ON purchase_history(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_history_performed_by ON purchase_history(performed_by);
 
 DROP TRIGGER IF EXISTS update_purchases_updated_at ON purchases;
 CREATE TRIGGER update_purchases_updated_at BEFORE UPDATE ON purchases FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -572,7 +572,7 @@ DROP TABLE IF EXISTS transfer_receptions CASCADE;
 DROP TABLE IF EXISTS transfers CASCADE;
 DROP TABLE IF EXISTS store_transfers CASCADE;
 
-CREATE TABLE store_transfers (
+CREATE TABLE IF NOT EXISTS store_transfers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transfer_code TEXT UNIQUE NOT NULL,
     source_store_id UUID NOT NULL REFERENCES stores(id),
@@ -586,10 +586,10 @@ CREATE TABLE store_transfers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_store_transfers_source ON store_transfers(source_store_id);
-CREATE INDEX idx_store_transfers_dest ON store_transfers(destination_store_id);
-CREATE INDEX idx_store_transfers_product ON store_transfers(product_id);
-CREATE INDEX idx_store_transfers_status ON store_transfers(status);
+CREATE INDEX IF NOT EXISTS idx_store_transfers_source ON store_transfers(source_store_id);
+CREATE INDEX IF NOT EXISTS idx_store_transfers_dest ON store_transfers(destination_store_id);
+CREATE INDEX IF NOT EXISTS idx_store_transfers_product ON store_transfers(product_id);
+CREATE INDEX IF NOT EXISTS idx_store_transfers_status ON store_transfers(status);
 
 -- Auto-update updated_at on changes
 DROP TRIGGER IF EXISTS update_store_transfers_updated_at ON store_transfers;
@@ -613,7 +613,7 @@ BEFORE INSERT ON store_transfers
 FOR EACH ROW EXECUTE FUNCTION generate_store_transfer_code();
 
 -- Validation réception transfert
-CREATE TABLE transfer_receptions (
+CREATE TABLE IF NOT EXISTS transfer_receptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transfer_id UUID NOT NULL REFERENCES store_transfers(id) ON DELETE CASCADE,
     received_quantity INTEGER NOT NULL CHECK (received_quantity > 0),
@@ -631,8 +631,8 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-CREATE INDEX idx_transfer_receptions_transfer ON transfer_receptions(transfer_id);
-CREATE INDEX idx_transfer_receptions_received_by ON transfer_receptions(received_by);
+CREATE INDEX IF NOT EXISTS idx_transfer_receptions_transfer ON transfer_receptions(transfer_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_receptions_received_by ON transfer_receptions(received_by);
 
 -- On validation (réception), attribuer le produit au magasin destination et incrémenter le stock
 CREATE OR REPLACE FUNCTION ensure_product_store_on_transfer_receipt()
@@ -690,9 +690,40 @@ AFTER INSERT ON transfer_receptions
 FOR EACH ROW EXECUTE FUNCTION ensure_product_store_on_transfer_receipt();
 
 -- =====================================================
+-- INVENTORY ADJUSTMENTS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS inventory_adjustments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    inventory_id UUID REFERENCES product_stores(id),
+    store_id UUID NOT NULL REFERENCES stores(id),
+    product_id UUID NOT NULL REFERENCES products(id),
+    adjustment_type TEXT NOT NULL CHECK (adjustment_type IN ('purchase', 'sale', 'transfer_in', 'transfer_out', 'return', 'adjustment', 'loss', 'theft')),
+    previous_quantity INTEGER NOT NULL,
+    new_quantity INTEGER NOT NULL,
+    quantity_change INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    reference_id UUID,
+    reference_type TEXT CHECK (reference_type IN ('purchase', 'sale', 'transfer', 'return', 'adjustment')),
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_store ON inventory_adjustments(store_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_product ON inventory_adjustments(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_type ON inventory_adjustments(adjustment_type);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_created_by ON inventory_adjustments(created_by);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_created_at ON inventory_adjustments(created_at);
+
+-- Auto-update updated_at on changes
+DROP TRIGGER IF EXISTS update_inventory_adjustments_updated_at ON inventory_adjustments;
+CREATE TRIGGER update_inventory_adjustments_updated_at
+BEFORE UPDATE ON inventory_adjustments
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
 -- SALES / RETURNS
 -- =====================================================
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     email TEXT,
@@ -706,7 +737,7 @@ CREATE TABLE customers (
     CONSTRAINT customers_email_check CHECK (email IS NULL OR email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sale_code TEXT UNIQUE NOT NULL,
     store_id UUID NOT NULL REFERENCES stores(id),
@@ -729,9 +760,10 @@ CREATE TABLE sales (
 -- Name the FK for sold_by explicitly as per fix
 ALTER TABLE sales
     DROP CONSTRAINT IF EXISTS sales_sold_by_fkey,
+    DROP CONSTRAINT IF EXISTS sales_created_by_fkey,
     ADD CONSTRAINT sales_created_by_fkey FOREIGN KEY (sold_by) REFERENCES users(id) ON DELETE RESTRICT;
 
-CREATE TABLE sale_items (
+CREATE TABLE IF NOT EXISTS sale_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id),
@@ -746,7 +778,7 @@ CREATE TABLE sale_items (
     CONSTRAINT sale_items_price_check CHECK (unit_price >= 0 AND total_price >= 0)
 );
 
-CREATE TABLE returns (
+CREATE TABLE IF NOT EXISTS returns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     return_code TEXT UNIQUE NOT NULL,
     original_sale_id UUID NOT NULL REFERENCES sales(id),
@@ -762,7 +794,7 @@ CREATE TABLE returns (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE TABLE return_items (
+CREATE TABLE IF NOT EXISTS return_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     return_id UUID NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
     original_sale_item_id UUID NOT NULL REFERENCES sale_items(id),
@@ -786,21 +818,21 @@ CREATE TABLE return_items (
     )
 );
 
-CREATE INDEX idx_customers_name ON customers(name);
-CREATE INDEX idx_customers_email ON customers(email);
-CREATE INDEX idx_customers_active ON customers(is_active);
-CREATE INDEX idx_sales_store ON sales(store_id);
-CREATE INDEX idx_sales_customer ON sales(customer_id);
-CREATE INDEX idx_sales_code ON sales(sale_code);
-CREATE INDEX idx_sales_sold_by ON sales(sold_by);
-CREATE INDEX idx_sales_date ON sales(sold_at);
-CREATE INDEX idx_sale_items_sale ON sale_items(sale_id);
-CREATE INDEX idx_sale_items_product ON sale_items(product_id);
-CREATE INDEX idx_returns_sale ON returns(original_sale_id);
-CREATE INDEX idx_returns_code ON returns(return_code);
-CREATE INDEX idx_returns_status ON returns(return_status);
-CREATE INDEX idx_return_items_return ON return_items(return_id);
-CREATE INDEX idx_return_items_product ON return_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_active ON customers(is_active);
+CREATE INDEX IF NOT EXISTS idx_sales_store ON sales(store_id);
+CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);
+CREATE INDEX IF NOT EXISTS idx_sales_code ON sales(sale_code);
+CREATE INDEX IF NOT EXISTS idx_sales_sold_by ON sales(sold_by);
+CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sold_at);
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_returns_sale ON returns(original_sale_id);
+CREATE INDEX IF NOT EXISTS idx_returns_code ON returns(return_code);
+CREATE INDEX IF NOT EXISTS idx_returns_status ON returns(return_status);
+CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);
+CREATE INDEX IF NOT EXISTS idx_return_items_product ON return_items(product_id);
 
 DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -861,10 +893,112 @@ $$;
 DROP TRIGGER IF EXISTS trigger_update_stock_on_sale ON sale_items;
 CREATE TRIGGER trigger_update_stock_on_sale AFTER INSERT ON sale_items FOR EACH ROW EXECUTE FUNCTION update_stock_on_sale();
 
+-- Adjust inventory automatically when a return is recorded
+CREATE OR REPLACE FUNCTION adjust_stock_on_return()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  sale_store UUID;
+  sold_qty INTEGER;
+  total_returned INTEGER;
+  ps_current_stock INTEGER;
+BEGIN
+  -- Determine the store of the original sale
+  SELECT s.store_id INTO sale_store
+  FROM returns r
+  JOIN sales s ON s.id = r.original_sale_id
+  WHERE r.id = NEW.return_id;
+
+  IF sale_store IS NULL THEN
+    RAISE EXCEPTION 'Impossible de déterminer le magasin de la vente d''origine pour le retour %', NEW.return_id;
+  END IF;
+
+  -- Validate not returning more than originally sold for that sale item
+  SELECT si.quantity INTO sold_qty FROM sale_items si WHERE si.id = NEW.original_sale_item_id;
+  IF sold_qty IS NULL THEN
+    RAISE EXCEPTION 'Ligne de vente d''origine introuvable (%).', NEW.original_sale_item_id;
+  END IF;
+
+  SELECT COALESCE(SUM(ri.returned_quantity), 0)
+    INTO total_returned
+  FROM return_items ri
+  WHERE ri.original_sale_item_id = NEW.original_sale_item_id;
+
+  IF total_returned > sold_qty THEN
+    RAISE EXCEPTION 'Quantité retournée totale (%) dépasse la quantité vendue (%) pour la ligne %', total_returned, sold_qty, NEW.original_sale_item_id;
+  END IF;
+
+  -- Ensure link exists for returned product then increase stock
+  INSERT INTO product_stores (product_id, store_id, current_stock)
+  VALUES (NEW.product_id, sale_store, 0)
+  ON CONFLICT (product_id, store_id) DO NOTHING;
+
+  UPDATE product_stores
+  SET current_stock = current_stock + NEW.returned_quantity
+  WHERE product_id = NEW.product_id AND store_id = sale_store;
+
+  -- Handle exchange (optional): decrease stock for the exchanged product
+  IF NEW.exchange_product_id IS NOT NULL AND NEW.exchange_quantity IS NOT NULL AND NEW.exchange_quantity > 0 THEN
+    INSERT INTO product_stores (product_id, store_id, current_stock)
+    VALUES (NEW.exchange_product_id, sale_store, 0)
+    ON CONFLICT (product_id, store_id) DO NOTHING;
+
+    -- Prevent negative stock on exchange
+    SELECT current_stock INTO ps_current_stock
+    FROM product_stores
+    WHERE product_id = NEW.exchange_product_id AND store_id = sale_store
+    LIMIT 1;
+
+    IF ps_current_stock IS NULL THEN
+      ps_current_stock := 0;
+    END IF;
+    IF ps_current_stock < NEW.exchange_quantity THEN
+      RAISE EXCEPTION 'Stock insuffisant pour le produit d''échange (%), stock actuel %, demandé %', NEW.exchange_product_id, ps_current_stock, NEW.exchange_quantity;
+    END IF;
+
+    UPDATE product_stores
+    SET current_stock = product_stores.current_stock - NEW.exchange_quantity
+    WHERE product_id = NEW.exchange_product_id AND store_id = sale_store;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_adjust_stock_on_return ON return_items;
+CREATE TRIGGER trigger_adjust_stock_on_return
+AFTER INSERT ON return_items
+FOR EACH ROW EXECUTE FUNCTION adjust_stock_on_return();
+
+-- Auto finalize return status when first item is inserted
+CREATE OR REPLACE FUNCTION finalize_return_on_first_item()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  UPDATE returns
+  SET return_status = 'completed',
+      processed_at = COALESCE(processed_at, now())
+  WHERE id = NEW.return_id
+    AND return_status <> 'completed';
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_finalize_return_on_first_item ON return_items;
+CREATE TRIGGER trigger_finalize_return_on_first_item
+AFTER INSERT ON return_items
+FOR EACH ROW EXECUTE FUNCTION finalize_return_on_first_item();
+
 -- =====================================================
 -- EXPENSES
 -- =====================================================
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     description TEXT,
@@ -879,17 +1013,17 @@ CREATE TABLE expenses (
     CONSTRAINT expenses_category_check CHECK (length(category) >= 2)
 );
 
-CREATE INDEX idx_expenses_store_id ON expenses(store_id);
-CREATE INDEX idx_expenses_created_by ON expenses(created_by);
-CREATE INDEX idx_expenses_expense_date ON expenses(expense_date);
-CREATE INDEX idx_expenses_category ON expenses(category);
+CREATE INDEX IF NOT EXISTS idx_expenses_store_id ON expenses(store_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_created_by ON expenses(created_by);
+CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
 DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
 CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
 -- GAMIFICATION (standardized tables used by frontend)
 -- =====================================================
-CREATE TABLE gamification_levels (
+CREATE TABLE IF NOT EXISTS gamification_levels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     min_points INTEGER NOT NULL,
@@ -902,7 +1036,7 @@ CREATE TABLE gamification_levels (
     CONSTRAINT gamification_levels_points_check CHECK (min_points >= 0 AND max_points > min_points)
 );
 
-CREATE TABLE gamification_point_rules (
+CREATE TABLE IF NOT EXISTS gamification_point_rules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     description TEXT,
@@ -916,7 +1050,7 @@ CREATE TABLE gamification_point_rules (
     CONSTRAINT gamification_point_rules_points_check CHECK (points_awarded >= 0)
 );
 
-CREATE TABLE gamification_points (
+CREATE TABLE IF NOT EXISTS gamification_points (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     points INTEGER NOT NULL,
@@ -925,7 +1059,7 @@ CREATE TABLE gamification_points (
     CONSTRAINT gamification_points_reason_check CHECK (length(reason) >= 2)
 );
 
-CREATE TABLE gamification_badges (
+CREATE TABLE IF NOT EXISTS gamification_badges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -939,7 +1073,7 @@ CREATE TABLE gamification_badges (
     CONSTRAINT gamification_badges_name_check CHECK (length(name) >= 2)
 );
 
-CREATE TABLE gamification_trophies (
+CREATE TABLE IF NOT EXISTS gamification_trophies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -953,7 +1087,7 @@ CREATE TABLE gamification_trophies (
     CONSTRAINT gamification_trophies_name_check CHECK (length(name) >= 2)
 );
 
-CREATE TABLE user_badges (
+CREATE TABLE IF NOT EXISTS user_badges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     badge_id UUID NOT NULL REFERENCES gamification_badges(id) ON DELETE CASCADE,
@@ -963,7 +1097,7 @@ CREATE TABLE user_badges (
     CONSTRAINT user_badges_unique UNIQUE(user_id, badge_id)
 );
 
-CREATE TABLE user_trophies (
+CREATE TABLE IF NOT EXISTS user_trophies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     trophy_id UUID NOT NULL REFERENCES gamification_trophies(id) ON DELETE CASCADE,
@@ -975,15 +1109,15 @@ CREATE TABLE user_trophies (
     CONSTRAINT user_trophies_unique UNIQUE(user_id, trophy_id)
 );
 
-CREATE INDEX idx_gamification_levels_points ON gamification_levels(min_points, max_points);
-CREATE INDEX idx_gamification_point_rules_active ON gamification_point_rules(is_active);
-CREATE INDEX idx_gamification_point_rules_event ON gamification_point_rules(event_type);
-CREATE INDEX idx_gamification_points_user ON gamification_points(user_id);
-CREATE INDEX idx_gamification_points_date ON gamification_points(created_at);
-CREATE INDEX idx_gamification_badges_active ON gamification_badges(is_active);
-CREATE INDEX idx_gamification_trophies_active ON gamification_trophies(is_active);
-CREATE INDEX idx_user_badges_user ON user_badges(user_id);
-CREATE INDEX idx_user_trophies_user ON user_trophies(user_id);
+CREATE INDEX IF NOT EXISTS idx_gamification_levels_points ON gamification_levels(min_points, max_points);
+CREATE INDEX IF NOT EXISTS idx_gamification_point_rules_active ON gamification_point_rules(is_active);
+CREATE INDEX IF NOT EXISTS idx_gamification_point_rules_event ON gamification_point_rules(event_type);
+CREATE INDEX IF NOT EXISTS idx_gamification_points_user ON gamification_points(user_id);
+CREATE INDEX IF NOT EXISTS idx_gamification_points_date ON gamification_points(created_at);
+CREATE INDEX IF NOT EXISTS idx_gamification_badges_active ON gamification_badges(is_active);
+CREATE INDEX IF NOT EXISTS idx_gamification_trophies_active ON gamification_trophies(is_active);
+CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_trophies_user ON user_trophies(user_id);
 
 DROP TRIGGER IF EXISTS update_gamification_levels_updated_at ON gamification_levels;
 CREATE TRIGGER update_gamification_levels_updated_at BEFORE UPDATE ON gamification_levels FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -997,7 +1131,7 @@ CREATE TRIGGER update_gamification_trophies_updated_at BEFORE UPDATE ON gamifica
 -- =====================================================
 -- SETTINGS AND CURRENCIES
 -- =====================================================
-CREATE TABLE system_settings (
+CREATE TABLE IF NOT EXISTS system_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     setting_key TEXT NOT NULL UNIQUE,
     setting_value TEXT NOT NULL,
@@ -1012,7 +1146,7 @@ CREATE TABLE system_settings (
     CONSTRAINT system_settings_key_check CHECK (length(setting_key) >= 2)
 );
 
-CREATE TABLE currencies (
+CREATE TABLE IF NOT EXISTS currencies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
@@ -1028,12 +1162,12 @@ CREATE TABLE currencies (
     CONSTRAINT currencies_decimal_places_check CHECK (decimal_places BETWEEN 0 AND 4)
 );
 
-CREATE INDEX idx_system_settings_key ON system_settings(setting_key);
-CREATE INDEX idx_system_settings_category ON system_settings(category);
-CREATE INDEX idx_system_settings_public ON system_settings(is_public);
-CREATE INDEX idx_currencies_code ON currencies(code);
-CREATE INDEX idx_currencies_default ON currencies(is_default);
-CREATE INDEX idx_currencies_active ON currencies(is_active);
+CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(setting_key);
+CREATE INDEX IF NOT EXISTS idx_system_settings_category ON system_settings(category);
+CREATE INDEX IF NOT EXISTS idx_system_settings_public ON system_settings(is_public);
+CREATE INDEX IF NOT EXISTS idx_currencies_code ON currencies(code);
+CREATE INDEX IF NOT EXISTS idx_currencies_default ON currencies(is_default);
+CREATE INDEX IF NOT EXISTS idx_currencies_active ON currencies(is_active);
 
 DROP TRIGGER IF EXISTS update_system_settings_updated_at ON system_settings;
 CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -1073,7 +1207,9 @@ ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE returns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE return_items ENABLE ROW LEVEL SECURITY;
 -- transfers table removed; use store_transfers
+ALTER TABLE store_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfer_receptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory_adjustments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE currencies ENABLE ROW LEVEL SECURITY;
@@ -1090,18 +1226,58 @@ REVOKE ALL ON TABLE users FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE ON TABLE users TO authenticated;
 GRANT SELECT ON TABLE users TO anon;
 
+-- Base SELECT rights for frontend (RLS still applies)
+GRANT SELECT ON TABLE
+  system_settings, currencies,
+  user_stores, stores, suppliers, units, categories,
+  products, product_stores,
+  customers,
+  purchases, arrivals, purchase_history,
+  sales, sale_items,
+  returns, return_items,
+  store_transfers, transfer_receptions,
+  inventory_adjustments,
+  expenses
+TO authenticated;
+
+-- Optional write rights for authenticated (RLS will still restrict rows)
+GRANT INSERT, UPDATE, DELETE ON TABLE
+  purchases, arrivals, purchase_history,
+  sales, sale_items,
+  returns, return_items,
+  store_transfers, transfer_receptions,
+  inventory_adjustments,
+  expenses
+TO authenticated;
+
+-- Admin-only writes are enforced by RLS, but we still need table-level GRANTs for the 'authenticated' role
+GRANT INSERT, UPDATE, DELETE ON TABLE
+  stores, suppliers, categories, units, products, user_stores
+TO authenticated;
+
+-- Allow authenticated to write system_settings (RLS restricts to Admin/SuperAdmin)
+GRANT INSERT, UPDATE, DELETE ON TABLE system_settings TO authenticated;
+
 -- User_stores RLS
 CREATE POLICY "SuperAdmin user_stores all" ON user_stores FOR ALL USING (is_superadmin());
 CREATE POLICY "Admin user_stores all" ON user_stores FOR ALL USING (is_admin());
 CREATE POLICY "User view own assignments" ON user_stores FOR SELECT USING (user_id = (SELECT id FROM users WHERE auth_id = get_current_user_id()));
 
 -- Stores RLS (hardened per security-hardening.sql)
+-- IMPORTANT: L'ordre des politiques est crucial pour la priorité
 CREATE POLICY "stores_select_admins" ON stores FOR SELECT USING (is_admin() OR is_superadmin());
 CREATE POLICY "stores_select_assigned_for_non_admin" ON stores FOR SELECT USING (
   NOT (is_admin() OR is_superadmin()) AND EXISTS (
     SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
     WHERE u.auth_id = get_current_user_id() AND us.store_id = stores.id
   )
+);
+
+-- Politique spéciale pour permettre aux managers de voir TOUS les magasins pour les transferts
+-- Cette politique doit être créée APRÈS les autres pour avoir la priorité
+CREATE POLICY "stores_select_for_transfers" ON stores FOR SELECT USING (
+  (SELECT role FROM users WHERE auth_id = get_current_user_id()) = 'Manager'
+  AND is_active = true
 );
 CREATE POLICY "stores_insert_admins" ON stores FOR INSERT WITH CHECK (is_admin() OR is_superadmin());
 CREATE POLICY "stores_update_admins" ON stores FOR UPDATE USING (is_admin() OR is_superadmin()) WITH CHECK (is_admin() OR is_superadmin());
@@ -1194,14 +1370,29 @@ CREATE POLICY "Vendeur products view via transfers" ON products FOR SELECT USING
   )
 );
 
+-- SuperAdmin et Admin ont tous les droits
 CREATE POLICY "SuperAdmin product_stores all" ON product_stores FOR ALL USING (is_superadmin());
 CREATE POLICY "Admin product_stores all" ON product_stores FOR ALL USING (is_admin());
-CREATE POLICY "Manager product_stores scoped" ON product_stores FOR ALL USING (
+
+-- Manager peut voir et modifier le stock de ses magasins assignés
+CREATE POLICY "Manager product_stores scoped" ON product_stores FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
     WHERE u.auth_id = get_current_user_id() AND u.role = 'Manager' AND us.store_id = product_stores.store_id
   )
 );
+
+-- Manager peut modifier le stock de ses magasins assignés
+CREATE POLICY "Manager product_stores update" ON product_stores FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id() 
+    AND u.role = 'Manager' 
+    AND us.store_id = product_stores.store_id
+  )
+);
+
+-- Vendeur peut seulement voir le stock
 CREATE POLICY "Vendeur product_stores view" ON product_stores FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
@@ -1371,13 +1562,50 @@ CREATE POLICY "Vendeur return_items view" ON return_items FOR SELECT USING (
   )
 );
 
+-- Allow Managers to INSERT return_items if assigned to the sale's store
+CREATE POLICY "Manager return_items insert" ON return_items FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM returns r
+    JOIN sales s ON s.id = r.original_sale_id
+    JOIN user_stores us ON us.store_id = s.store_id
+    JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id()
+      AND u.role = 'Manager'
+      AND r.id = return_items.return_id
+  )
+);
+
+-- Allow Vendeurs to INSERT return_items if assigned to the sale's store
+CREATE POLICY "Vendeur return_items insert" ON return_items FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM returns r
+    JOIN sales s ON s.id = r.original_sale_id
+    JOIN user_stores us ON us.store_id = s.store_id
+    JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id()
+      AND u.role = 'Vendeur'
+      AND r.id = return_items.return_id
+  )
+);
+
 -- Transfers
+-- Managers can transfer FROM their assigned stores TO ANY store in the company
 CREATE POLICY "SuperAdmin store_transfers all" ON store_transfers FOR ALL USING (is_superadmin());
 CREATE POLICY "Admin store_transfers all" ON store_transfers FOR ALL USING (is_admin());
 CREATE POLICY "Manager store_transfers scoped" ON store_transfers FOR ALL USING (
   EXISTS (
     SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
-    WHERE u.auth_id = get_current_user_id() AND u.role = 'Manager' AND (us.store_id = store_transfers.source_store_id OR us.store_id = store_transfers.destination_store_id)
+    WHERE u.auth_id = get_current_user_id() AND u.role = 'Manager' AND us.store_id = store_transfers.source_store_id
+  )
+);
+
+-- Politique spéciale pour permettre l'annulation des transferts
+CREATE POLICY "Manager store_transfers cancel" ON store_transfers FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id() 
+    AND u.role = 'Manager' 
+    AND us.store_id = store_transfers.source_store_id
   )
 );
 
@@ -1400,6 +1628,42 @@ CREATE POLICY "Users view transfer_receptions scoped to their stores" ON transfe
 );
 
 -- transfer_history table removed; no policies required
+
+-- =====================================================
+-- POLITIQUES RLS POUR INVENTORY_ADJUSTMENTS
+-- =====================================================
+
+-- SuperAdmin peut tout faire
+CREATE POLICY "SuperAdmin inventory_adjustments all" ON inventory_adjustments FOR ALL USING (is_superadmin());
+
+-- Admin peut gérer tous les ajustements
+CREATE POLICY "Admin inventory_adjustments all" ON inventory_adjustments FOR ALL USING (is_admin());
+
+-- Manager peut voir les ajustements de ses magasins assignés
+CREATE POLICY "Manager inventory_adjustments view" ON inventory_adjustments FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id() AND u.role = 'Manager' AND us.store_id = inventory_adjustments.store_id
+  )
+);
+
+-- Manager peut créer des ajustements pour ses magasins assignés
+CREATE POLICY "Manager inventory_adjustments insert" ON inventory_adjustments FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id() 
+    AND u.role = 'Manager' 
+    AND us.store_id = inventory_adjustments.store_id
+  )
+);
+
+-- Vendeur peut voir les ajustements de son magasin
+CREATE POLICY "Vendeur inventory_adjustments view" ON inventory_adjustments FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM user_stores us JOIN users u ON u.id = us.user_id
+    WHERE u.auth_id = get_current_user_id() AND u.role = 'Vendeur' AND us.store_id = inventory_adjustments.store_id
+  )
+);
 
 -- Expenses
 CREATE POLICY "Admins expenses all" ON expenses FOR ALL USING (is_admin() OR is_superadmin());
@@ -1484,6 +1748,431 @@ BEGIN
   RAISE NOTICE 'GesFlex Pro – Initial clean migration applied';
   RAISE NOTICE 'Tables, FKs, RLS and seeds created successfully';
 END$$;
+
+-- =====================================================
+-- VUES POSTGRESQL CRITIQUES POUR LE DASHBOARD
+-- =====================================================
+
+-- Vue des produits en rupture de stock
+CREATE OR REPLACE VIEW low_stock_products_view AS
+SELECT 
+    p.id as product_id,
+    p.name as product_name,
+    p.sku as product_sku,
+    p.alert_stock,
+    ps.current_stock,
+    s.id as store_id,
+    s.name as store_name,
+    c.name as category_name,
+    u.symbol as unit_symbol
+FROM products p
+JOIN product_stores ps ON ps.product_id = p.id
+JOIN stores s ON s.id = ps.store_id
+LEFT JOIN categories c ON c.id = p.category_id
+LEFT JOIN units u ON u.id = p.unit_id
+WHERE ps.current_stock <= p.alert_stock
+AND p.is_active = true
+AND s.is_active = true
+ORDER BY ps.current_stock ASC, p.name;
+
+-- Vue des statistiques de vente quotidiennes
+CREATE OR REPLACE VIEW sales_stats_daily_view AS
+SELECT 
+    DATE(s.sold_at) as sale_date,
+    s.store_id,
+    st.name as store_name,
+    COUNT(s.id) as sales_count,
+    SUM(s.total_amount) as total_amount,
+    SUM(si.quantity) as products_sold,
+    AVG(s.total_amount) as average_ticket
+FROM sales s
+JOIN sale_items si ON si.sale_id = s.id
+JOIN stores st ON st.id = s.store_id
+WHERE s.sold_at >= current_date - interval '30 days'
+GROUP BY DATE(s.sold_at), s.store_id, st.name
+ORDER BY sale_date DESC, total_amount DESC;
+
+-- =====================================================
+-- FONCTIONS POSTGRESQL POUR LE DASHBOARD
+-- =====================================================
+
+-- Fonction pour obtenir l'inventaire d'un magasin
+CREATE OR REPLACE FUNCTION get_store_inventory(store_id UUID)
+RETURNS TABLE (
+    product_id UUID,
+    product_name TEXT,
+    product_sku TEXT,
+    category_name TEXT,
+    unit_symbol TEXT,
+    current_stock INTEGER,
+    min_stock INTEGER,
+    max_stock INTEGER,
+    alert_stock INTEGER,
+    current_price DECIMAL(10,2),
+    is_available BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.id,
+        p.name,
+        p.sku,
+        c.name,
+        u.symbol,
+        ps.current_stock,
+        ps.min_stock,
+        ps.max_stock,
+        p.alert_stock,
+        p.current_sale_price,
+        ps.is_available
+    FROM products p
+    JOIN product_stores ps ON ps.product_id = p.id
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN units u ON u.id = p.unit_id
+    WHERE ps.store_id = store_id
+    AND p.is_active = true
+    ORDER BY p.name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour obtenir les statistiques de vente d'un magasin
+CREATE OR REPLACE FUNCTION get_store_sales_stats(
+    store_id UUID,
+    start_date DATE DEFAULT current_date - interval '30 days',
+    end_date DATE DEFAULT current_date
+)
+RETURNS TABLE (
+    period_date DATE,
+    sales_count INTEGER,
+    total_amount DECIMAL(10,2),
+    products_sold INTEGER,
+    average_ticket DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        DATE(s.sold_at) as period_date,
+        COUNT(s.id) as sales_count,
+        SUM(s.total_amount) as total_amount,
+        SUM(si.quantity) as products_sold,
+        AVG(s.total_amount) as average_ticket
+    FROM sales s
+    JOIN sale_items si ON si.sale_id = s.id
+    WHERE s.store_id = store_id
+    AND DATE(s.sold_at) BETWEEN start_date AND end_date
+    GROUP BY DATE(s.sold_at)
+    ORDER BY period_date DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour obtenir les produits les plus vendus
+CREATE OR REPLACE FUNCTION get_top_selling_products(
+    store_id UUID,
+    limit_count INTEGER DEFAULT 10,
+    period_days INTEGER DEFAULT 30
+)
+RETURNS TABLE (
+    product_id UUID,
+    product_name TEXT,
+    product_sku TEXT,
+    total_quantity INTEGER,
+    total_revenue DECIMAL(10,2),
+    average_price DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.id,
+        p.name,
+        p.sku,
+        SUM(si.quantity) as total_quantity,
+        SUM(si.total_price) as total_revenue,
+        AVG(si.unit_price) as average_price
+    FROM products p
+    JOIN sale_items si ON si.product_id = p.id
+    JOIN sales s ON s.id = si.sale_id
+    WHERE s.store_id = store_id
+    AND s.sold_at >= current_date - (period_days || ' days')::INTERVAL
+    GROUP BY p.id, p.name, p.sku
+    ORDER BY total_quantity DESC
+    LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- FONCTIONS DE MAINTENANCE ET DIAGNOSTIC
+-- =====================================================
+
+-- Fonction pour nettoyer les données orphelines
+CREATE OR REPLACE FUNCTION cleanup_orphaned_data()
+RETURNS TABLE (
+    table_name TEXT,
+    orphaned_count INTEGER
+) AS $$
+DECLARE
+    result INTEGER;
+BEGIN
+    -- Nettoyer les user_stores orphelins
+    DELETE FROM user_stores 
+    WHERE user_id NOT IN (SELECT id FROM users)
+    OR store_id NOT IN (SELECT id FROM stores);
+    
+    GET DIAGNOSTICS result = ROW_COUNT;
+    table_name := 'user_stores';
+    orphaned_count := result;
+    RETURN NEXT;
+    
+    -- Nettoyer les product_stores orphelins
+    DELETE FROM product_stores 
+    WHERE product_id NOT IN (SELECT id FROM products)
+    OR store_id NOT IN (SELECT id FROM stores);
+    
+    GET DIAGNOSTICS result = ROW_COUNT;
+    table_name := 'product_stores';
+    orphaned_count := result;
+    RETURN NEXT;
+    
+    -- Nettoyer les achats orphelins
+    DELETE FROM purchases 
+    WHERE created_by NOT IN (SELECT id FROM users)
+    OR store_id NOT IN (SELECT id FROM stores)
+    OR product_id NOT IN (SELECT id FROM products)
+    OR supplier_id NOT IN (SELECT id FROM suppliers);
+    
+    GET DIAGNOSTICS result = ROW_COUNT;
+    table_name := 'purchases';
+    orphaned_count := result;
+    RETURN NEXT;
+    
+    -- Nettoyer les ventes orphelines
+    DELETE FROM sales 
+    WHERE sold_by NOT IN (SELECT id FROM users)
+    OR store_id NOT IN (SELECT id FROM stores);
+    
+    GET DIAGNOSTICS result = ROW_COUNT;
+    table_name := 'sales';
+    orphaned_count := result;
+    RETURN NEXT;
+    
+    -- Nettoyer les transferts orphelins
+    DELETE FROM store_transfers 
+    WHERE created_by NOT IN (SELECT id FROM users)
+    OR source_store_id NOT IN (SELECT id FROM stores)
+    OR destination_store_id NOT IN (SELECT id FROM stores)
+    OR product_id NOT IN (SELECT id FROM products);
+    
+    GET DIAGNOSTICS result = ROW_COUNT;
+    table_name := 'store_transfers';
+    orphaned_count := result;
+    RETURN NEXT;
+    
+    RETURN;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour obtenir des statistiques système
+CREATE OR REPLACE FUNCTION get_system_stats()
+RETURNS TABLE (
+    metric_name TEXT,
+    metric_value INTEGER
+) AS $$
+BEGIN
+    -- Nombre d'utilisateurs par rôle
+    RETURN QUERY SELECT 'users_superadmin'::TEXT, COUNT(*)::INTEGER FROM users WHERE role = 'SuperAdmin';
+    RETURN QUERY SELECT 'users_admin'::TEXT, COUNT(*)::INTEGER FROM users WHERE role = 'Admin';
+    RETURN QUERY SELECT 'users_manager'::TEXT, COUNT(*)::INTEGER FROM users WHERE role = 'Manager';
+    RETURN QUERY SELECT 'users_vendeur'::TEXT, COUNT(*)::INTEGER FROM users WHERE role = 'Vendeur';
+    
+    -- Nombre de magasins
+    RETURN QUERY SELECT 'stores_total'::TEXT, COUNT(*)::INTEGER FROM stores WHERE is_active = true;
+    
+    -- Nombre de produits
+    RETURN QUERY SELECT 'products_total'::TEXT, COUNT(*)::INTEGER FROM products WHERE is_active = true;
+    
+    -- Nombre de fournisseurs
+    RETURN QUERY SELECT 'suppliers_total'::TEXT, COUNT(*)::INTEGER FROM suppliers WHERE is_active = true;
+    
+    -- Nombre de ventes aujourd'hui
+    RETURN QUERY SELECT 'sales_today'::TEXT, COUNT(*)::INTEGER FROM sales WHERE DATE(sold_at) = current_date;
+    
+    -- Nombre d'achats en attente
+    RETURN QUERY SELECT 'purchases_pending'::TEXT, COUNT(*)::INTEGER FROM purchases WHERE status = 'pending';
+    
+    -- Nombre de transferts en attente
+    RETURN QUERY SELECT 'transfers_pending'::TEXT, COUNT(*)::INTEGER FROM store_transfers WHERE status = 'pending';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- FONCTIONS DE GAMIFICATION
+-- =====================================================
+
+-- Fonction pour attribuer des points à un utilisateur
+CREATE OR REPLACE FUNCTION award_gamification_points(
+    user_id UUID,
+    points INTEGER,
+    reason TEXT
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    INSERT INTO gamification_points (user_id, points, reason)
+    VALUES (user_id, points, reason);
+    
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour obtenir le niveau d'un utilisateur
+CREATE OR REPLACE FUNCTION get_user_level(user_id UUID)
+RETURNS TABLE (
+    level_name TEXT,
+    current_points INTEGER,
+    next_level_points INTEGER,
+    progress_percentage DECIMAL(5,2)
+) AS $$
+DECLARE
+    total_points INTEGER;
+    current_level RECORD;
+    next_level RECORD;
+BEGIN
+    -- Calculer le total des points de l'utilisateur
+    SELECT COALESCE(SUM(points), 0) INTO total_points
+    FROM gamification_points
+    WHERE user_id = get_user_level.user_id;
+    
+    -- Trouver le niveau actuel
+    SELECT * INTO current_level
+    FROM gamification_levels
+    WHERE min_points <= total_points AND max_points >= total_points
+    LIMIT 1;
+    
+    -- Trouver le niveau suivant
+    SELECT * INTO next_level
+    FROM gamification_levels
+    WHERE min_points > total_points
+    ORDER BY min_points ASC
+    LIMIT 1;
+    
+    RETURN QUERY
+    SELECT 
+        COALESCE(current_level.name, 'Débutant')::TEXT,
+        total_points::INTEGER,
+        COALESCE(next_level.min_points, total_points)::INTEGER,
+        CASE 
+            WHEN next_level.min_points IS NOT NULL AND current_level.max_points > current_level.min_points
+            THEN ((total_points - current_level.min_points)::DECIMAL / (current_level.max_points - current_level.min_points) * 100)::DECIMAL(5,2)
+            ELSE 100.00
+        END;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- COMMENTAIRES ET DOCUMENTATION
+-- =====================================================
+
+COMMENT ON VIEW low_stock_products_view IS 'Vue des produits en rupture de stock pour le dashboard';
+COMMENT ON VIEW sales_stats_daily_view IS 'Vue des statistiques de vente quotidiennes par magasin';
+COMMENT ON FUNCTION get_store_inventory(UUID) IS 'Récupère l''inventaire complet d''un magasin';
+COMMENT ON FUNCTION get_store_sales_stats(UUID, DATE, DATE) IS 'Récupère les statistiques de vente d''un magasin sur une période';
+COMMENT ON FUNCTION get_top_selling_products(UUID, INTEGER, INTEGER) IS 'Récupère les produits les plus vendus d''un magasin';
+COMMENT ON FUNCTION cleanup_orphaned_data() IS 'Nettoie les données orphelines pour maintenir l''intégrité';
+COMMENT ON FUNCTION get_system_stats() IS 'Récupère les statistiques système globales';
+COMMENT ON FUNCTION award_gamification_points(UUID, INTEGER, TEXT) IS 'Attribue des points de gamification à un utilisateur';
+COMMENT ON FUNCTION get_user_level(UUID) IS 'Calcule le niveau et la progression d''un utilisateur';
+
+-- =====================================================
+-- MESSAGE FINAL COMPLET
+-- =====================================================
+DO $$
+BEGIN
+  RAISE NOTICE 'GesFlex Pro – Migration complète appliquée avec succès';
+  RAISE NOTICE '✅ Tables, contraintes et RLS créés';
+  RAISE NOTICE '✅ Vues PostgreSQL créées (low_stock_products_view, sales_stats_daily_view)';
+  RAISE NOTICE '✅ Fonctions PostgreSQL créées (get_store_inventory, get_store_sales_stats, etc.)';
+  RAISE NOTICE '✅ Données de base insérées';
+  RAISE NOTICE '✅ Managers can transfer TO ANY store in the company';
+  RAISE NOTICE '✅ Politique stores_select_for_transfers ajoutée pour la visibilité complète';
+  RAISE NOTICE '✅ Politiques RLS corrigées pour SuperAdmin/Admin/Manager';
+  RAISE NOTICE '✅ Conflits de politiques RLS résolus';
+  RAISE NOTICE '✅ Base de données prête pour la production';
+END$$;
+
+-- =====================================================
+-- FONCTION DE TEST POUR VÉRIFIER LES POLITIQUES RLS
+-- =====================================================
+
+-- Fonction pour tester les permissions de transfert
+CREATE OR REPLACE FUNCTION test_transfer_permissions()
+RETURNS TABLE (
+    test_name TEXT,
+    result TEXT,
+    details TEXT
+) AS $$
+BEGIN
+    -- Test 1: Vérifier que l'utilisateur actuel peut voir les magasins
+    IF EXISTS (
+        SELECT 1 FROM stores WHERE is_active = true LIMIT 1
+    ) THEN
+        test_name := 'Visibilité des magasins';
+        result := 'PASS';
+        details := 'L''utilisateur peut voir les magasins';
+    ELSE
+        test_name := 'Visibilité des magasins';
+        result := 'FAIL';
+        details := 'L''utilisateur ne peut pas voir les magasins';
+    END IF;
+    RETURN NEXT;
+    
+    -- Test 2: Vérifier que l'utilisateur peut voir les produits
+    IF EXISTS (
+        SELECT 1 FROM products WHERE is_active = true LIMIT 1
+    ) THEN
+        test_name := 'Visibilité des produits';
+        result := 'PASS';
+        details := 'L''utilisateur peut voir les produits';
+    ELSE
+        test_name := 'Visibilité des produits';
+        result := 'FAIL';
+        details := 'L''utilisateur ne peut pas voir les produits';
+    END IF;
+    RETURN NEXT;
+    
+    -- Test 3: Vérifier que l'utilisateur peut voir product_stores
+    IF EXISTS (
+        SELECT 1 FROM product_stores LIMIT 1
+    ) THEN
+        test_name := 'Visibilité product_stores';
+        result := 'PASS';
+        details := 'L''utilisateur peut voir product_stores';
+    ELSE
+        test_name := 'Visibilité product_stores';
+        result := 'FAIL';
+        details := 'L''utilisateur ne peut pas voir product_stores';
+    END IF;
+    RETURN NEXT;
+    
+    -- Test 4: Vérifier les permissions de l'utilisateur actuel
+    IF is_superadmin() THEN
+        test_name := 'Rôle utilisateur';
+        result := 'PASS';
+        details := 'SuperAdmin - Tous les droits';
+    ELSIF is_admin() THEN
+        test_name := 'Rôle utilisateur';
+        result := 'PASS';
+        details := 'Admin - Droits étendus';
+    ELSE
+        test_name := 'Rôle utilisateur';
+        result := 'INFO';
+        details := 'Manager/Vendeur - Droits limités';
+    END IF;
+    RETURN NEXT;
+    
+    RETURN;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMIT;
 

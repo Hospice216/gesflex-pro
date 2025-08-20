@@ -22,6 +22,7 @@ export function ArrivalValidationModal({ isOpen, onClose, onSuccess, purchase }:
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [receivedQuantity, setReceivedQuantity] = useState("")
+  const isManager = userProfile?.role === 'Manager'
 
   useEffect(() => {
     if (isOpen && purchase) {
@@ -126,32 +127,34 @@ export function ArrivalValidationModal({ isOpen, onClose, onSuccess, purchase }:
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[92vw] sm:max-w-md p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Validation d'arrivage</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-base sm:text-lg">Validation d'arrivage</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             Vérifiez et validez les quantités reçues pour cet achat
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="bg-muted p-4 rounded-md space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Produit:</span>
-              <span className="text-sm">{purchase.products?.name}</span>
+          <div className="bg-muted p-3 sm:p-4 rounded-md grid grid-cols-1 gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs sm:text-sm font-medium">Produit</span>
+              <span className="text-xs sm:text-sm text-right line-clamp-2">{purchase.products?.name}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">SKU:</span>
-              <span className="text-sm">{purchase.products?.sku}</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs sm:text-sm font-medium">SKU</span>
+              <span className="text-xs sm:text-sm">{purchase.products?.sku}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Fournisseur:</span>
-              <span className="text-sm">{purchase.suppliers?.name}</span>
-            </div>
+            {!isManager && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs sm:text-sm font-medium">Fournisseur</span>
+                <span className="text-xs sm:text-sm">{purchase.suppliers?.name}</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="received_quantity">Quantité reçue *</Label>
+            <Label htmlFor="received_quantity" className="text-xs sm:text-sm">Quantité reçue *</Label>
             <Input
               id="received_quantity"
               type="number"
@@ -159,18 +162,21 @@ export function ArrivalValidationModal({ isOpen, onClose, onSuccess, purchase }:
               onChange={(e) => setReceivedQuantity(e.target.value)}
               required
               min="0"
+              className="h-10 sm:h-11 text-sm"
+              inputMode="numeric"
             />
-            <p className="text-xs text-muted-foreground">Le nombre commandé n'est pas affiché pour éviter d'influencer la saisie.</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground">Le nombre commandé n'est pas affiché pour éviter d'influencer la saisie.</p>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Annuler
           </Button>
           <Button 
             onClick={handleValidation} 
             disabled={loading || !receivedQuantity}
+            className="w-full sm:w-auto"
           >
             {loading ? "Validation..." : "Valider l'arrivage"}
           </Button>

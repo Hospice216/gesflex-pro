@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/integrations/supabase/client"
 import { useCurrency } from "@/hooks/useCurrency"
 import StoreTransferModal from "@/components/StoreTransferModal"
-import TransferPermissionsTest from "@/components/TransferPermissionsTest"
+import Breadcrumb from "@/components/Breadcrumb"
 import { ValidationStatus, StoreTransfer } from "@/integrations/supabase/types"
 
 interface TransferWithDetails extends StoreTransfer {
@@ -283,6 +283,13 @@ export default function Transfers() {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Breadcrumb */}
+      <Breadcrumb 
+        items={[
+          { label: 'Transferts', icon: undefined }
+        ]} 
+      />
+      
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -648,10 +655,7 @@ export default function Transfers() {
         </DialogContent>
       </Dialog>
 
-      {/* Composant de Test des Permissions - À retirer en production */}
-      <div className="mt-6">
-        <TransferPermissionsTest />
-      </div>
+
 
       {/* Validation Modal */}
       <Dialog open={showValidationModal} onOpenChange={setShowValidationModal}>

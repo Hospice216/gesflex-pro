@@ -243,10 +243,10 @@ export function PurchaseModal({ isOpen, onClose, onSuccess, purchase }: Purchase
       onClose()
     } catch (error) {
       console.error('Error saving purchase:', error)
-      const errorMessage = handleSupabaseError(error)
+      const errorMessage = handleSupabaseError(error, 'save purchase')
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: errorMessage.error,
         variant: "destructive",
       })
     } finally {

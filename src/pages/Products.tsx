@@ -27,6 +27,8 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Breadcrumb from "@/components/Breadcrumb"
 
 export default function Products() {
   const { formatAmount } = useCurrency()
@@ -45,10 +47,12 @@ export default function Products() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products')
   const [error, setError] = useState<string | null>(null)
+  const [productsPage, setProductsPage] = useState(1)
+  const [productsPageSize, setProductsPageSize] = useState<number | 'all'>(20)
 
-  // ✅ SOLUTION : Vérification des permissions avec gestion des cas limites
-  const canAddProduct = userProfile?.role && ['Admin', 'SuperAdmin', 'Manager'].includes(userProfile.role)
-  const canEditProduct = userProfile?.role && ['Admin', 'SuperAdmin', 'Manager'].includes(userProfile.role)
+  // ✅ RESTRICTION : Seuls les admins peuvent modifier et ajouter
+  const canAddProduct = userProfile?.role && ['Admin', 'SuperAdmin'].includes(userProfile.role)
+  const canEditProduct = userProfile?.role && ['Admin', 'SuperAdmin'].includes(userProfile.role)
   const canDeleteProduct = userProfile?.role && ['Admin', 'SuperAdmin'].includes(userProfile.role)
   const canDeleteCategory = userProfile?.role && ['Admin', 'SuperAdmin'].includes(userProfile.role)
   const canViewProducts = userProfile?.role && ['Vendeur', 'Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
@@ -267,6 +271,19 @@ export default function Products() {
     product.sku.toLowerCase().includes(productsSearchTerm.toLowerCase())
   )
 
+  const productsTotalPages = productsPageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredProducts.length / (productsPageSize as number)))
+  const currentProductsPage = Math.min(productsPage, productsTotalPages)
+  const paginatedProducts = productsPageSize === 'all'
+    ? filteredProducts
+    : filteredProducts.slice(
+        (currentProductsPage - 1) * (productsPageSize as number),
+        currentProductsPage * (productsPageSize as number)
+      )
+
+  useEffect(() => {
+    setProductsPage(1)
+  }, [productsPageSize, productsSearchTerm])
+
   // Prépare un index nombre de produits par catégorie (incluant 0 si aucune correspondance)
   const categoryIdToCount: Record<string, number> = products.reduce((acc: Record<string, number>, p: any) => {
     if (p.category_id) {
@@ -282,12 +299,12 @@ export default function Products() {
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Produits</h1>
-            <p className="text-muted-foreground">
-              Gérez vos produits et catégories
-            </p>
-          </div>
+                  <div className="space-y-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Produits</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Gérez vos produits et catégories
+          </p>
+        </div>
         </div>
         
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
@@ -305,6 +322,13 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      {/* ✅ NOUVEAU : Breadcrumb */}
+      <Breadcrumb 
+        items={[
+          { label: 'Produits', icon: undefined }
+        ]} 
+      />
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -312,23 +336,36 @@ export default function Products() {
           <p className="text-muted-foreground">
             Gérez vos produits et catégories
           </p>
+
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-2">
-          {/* ✅ SOLUTION : Boutons conditionnels avec vérification des permissions */}
-          {canAddProduct && (
-            <>
-              <Button variant="outline" size="touch" onClick={handleNewCategory} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nouvelle catégorie
-              </Button>
-              <Button variant="default" size="touch" onClick={handleNewProduct} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nouveau produit
-              </Button>
-            </>
-          )}
-        </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            {/* ✅ BOUTONS : Visibles uniquement pour les admins */}
+            {(userProfile?.role === 'Admin' || userProfile?.role === 'SuperAdmin') && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleNewCategory} 
+                  className="gap-2 w-full sm:w-auto justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nouvelle catégorie</span>
+                  <span className="sm:hidden">Catégorie</span>
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handleNewProduct} 
+                  className="gap-2 w-full sm:w-auto justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nouveau produit</span>
+                  <span className="sm:hidden">Produit</span>
+                </Button>
+              </>
+            )}
+          </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'products' | 'categories')} className="space-y-4">
@@ -355,23 +392,44 @@ export default function Products() {
             </Card>
           ) : (
             <>
-              {/* Search and Filters */}
-              <Card className="bg-gradient-card shadow-card">
+              {/* ✅ NOUVEAU : Barre de recherche et filtres améliorés */}
+              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
-                  <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="flex-1 relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
-                        placeholder="Rechercher un produit..."
+                        placeholder="Rechercher un produit par nom ou SKU..."
                         value={productsSearchTerm}
                         onChange={(e) => setProductsSearchTerm(e.target.value)}
-                        className="pl-10 h-12"
+                        className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
                       />
                     </div>
-                    <Button variant="outline" size="default" className="gap-2">
-                      <Filter className="w-4 h-4" />
-                      Filtres
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={loadProducts}
+                        disabled={productsLoading}
+                        className="gap-2 w-full sm:w-auto justify-center"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${productsLoading ? 'animate-spin' : ''}`} />
+                        <span className="hidden sm:inline">Actualiser</span>
+                        <span className="sm:hidden">🔄</span>
+                      </Button>
+                      {/* ✅ BOUTON : Visible uniquement pour les admins */}
+                      {(userProfile?.role === 'Admin' || userProfile?.role === 'SuperAdmin') && (
+                        <Button 
+                          onClick={handleNewProduct} 
+                          size="sm"
+                          className="gap-2 w-full sm:w-auto justify-center"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="hidden sm:inline">Nouveau produit</span>
+                          <span className="sm:hidden">Ajouter</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -383,9 +441,25 @@ export default function Products() {
                     <Package className="w-5 h-5 text-primary" />
                     Liste des produits
                   </CardTitle>
-                  <CardDescription>
-                    {productsLoading ? "Chargement..." : `${filteredProducts.length} produit(s) trouvé(s)`}
-                  </CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <CardDescription>
+                      {productsLoading ? "Chargement..." : `${filteredProducts.length} produit(s) trouvé(s)`}
+                    </CardDescription>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Par page</span>
+                      <Select value={String(productsPageSize)} onValueChange={(v) => setProductsPageSize(v === 'all' ? 'all' : parseInt(v))}>
+                        <SelectTrigger className="h-8 w-[92px]">
+                          <SelectValue placeholder="20" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {productsLoading ? (
@@ -426,8 +500,8 @@ export default function Products() {
                       )}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredProducts.map((product) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                      {paginatedProducts.map((product) => (
                         <Card key={product.id} className="bg-gradient-card shadow-card hover:shadow-elevated transition-all duration-200 transform hover:scale-[1.02]">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
@@ -540,6 +614,26 @@ export default function Products() {
                       ))}
                     </div>
                   )}
+                  {/* Pagination */}
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentProductsPage <= 1 || productsPageSize === 'all'}
+                      onClick={() => setProductsPage(p => Math.max(1, p - 1))}
+                    >
+                      Précédent
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Page {currentProductsPage} / {productsTotalPages}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentProductsPage >= productsTotalPages || productsPageSize === 'all'}
+                      onClick={() => setProductsPage(p => Math.min(productsTotalPages, p + 1))}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </>
@@ -550,20 +644,27 @@ export default function Products() {
           {/* ✅ SOLUTION : Recherche séparée pour les catégories */}
           <Card className="bg-gradient-card shadow-card">
             <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     placeholder="Rechercher une catégorie..."
                     value={categoriesSearchTerm}
                     onChange={(e) => setCategoriesSearchTerm(e.target.value)}
-                    className="pl-10 h-12"
+                    className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
                   />
                 </div>
-                {canAddProduct && (
-                  <Button variant="outline" size="default" onClick={handleNewCategory} className="gap-2">
+                {/* ✅ BOUTON : Visible uniquement pour les admins */}
+                {(userProfile?.role === 'Admin' || userProfile?.role === 'SuperAdmin') && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleNewCategory} 
+                    className="gap-2 w-full sm:w-auto justify-center"
+                  >
                     <Plus className="w-4 h-4" />
-                    Nouvelle catégorie
+                    <span className="hidden sm:inline">Nouvelle catégorie</span>
+                    <span className="sm:hidden">Catégorie</span>
                   </Button>
                 )}
               </div>
@@ -592,42 +693,87 @@ export default function Products() {
                   ))}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Catégorie</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Nombre de produits</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* ✅ MOBILE : Tableau responsive avec cartes sur mobile */}
+                  <div className="block sm:hidden">
+                  {/* Version mobile : Cartes */}
+                  <div className="space-y-3">
                     {filteredCategories.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{c.description || '—'}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="outline">{categoryIdToCount[c.id] || 0}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {canDeleteCategory ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteCategory(c.id)}
-                              disabled={(categoryIdToCount[c.id] || 0) > 0}
-                              title={(categoryIdToCount[c.id] || 0) > 0 ? 'Supprimez/déplacez d\'abord les produits' : ''}
-                            >
-                              Supprimer
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                      <Card key={c.id} className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-sm">{c.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {c.description || 'Aucune description'}
+                            </p>
+                            <div className="mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {categoryIdToCount[c.id] || 0} produit(s)
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="ml-3">
+                            {canDeleteCategory ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteCategory(c.id)}
+                                disabled={(categoryIdToCount[c.id] || 0) > 0}
+                                title={(categoryIdToCount[c.id] || 0) > 0 ? 'Supprimez/déplacez d\'abord les produits' : ''}
+                                className="text-xs"
+                              >
+                                Supprimer
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                </div>
+                
+                {/* Version desktop : Tableau */}
+                <div className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Catégorie</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Nombre de produits</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCategories.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{c.description || '—'}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="outline">{categoryIdToCount[c.id] || 0}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {canDeleteCategory ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteCategory(c.id)}
+                                disabled={(categoryIdToCount[c.id] || 0) > 0}
+                                title={(categoryIdToCount[c.id] || 0) > 0 ? 'Supprimez/déplacez d\'abord les produits' : ''}
+                              >
+                                Supprimer
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                  </>
               )}
             </CardContent>
           </Card>

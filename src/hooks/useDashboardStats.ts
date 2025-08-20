@@ -17,17 +17,14 @@ interface DashboardStats {
     count: number
     lowStockCount: number
   }
-  lowStockProducts: {
-    count: number
-    items: Array<{
-      id: string
-      name: string
-      sku: string
-      current_stock: number
-      alert_stock: number
-      store_name: string
-    }>
-  }
+  lowStockProducts: Array<{
+    id: string
+    name: string
+    sku: string
+    current_stock: number
+    alert_stock: number
+    store_name: string
+  }>
   recentSales: Array<{
     id: string
     sale_code: string
@@ -45,7 +42,7 @@ export function useDashboardStats() {
     dailySales: { amount: 0, count: 0, percentageChange: 0 },
     totalSales: { amount: 0, count: 0, productsSold: 0 },
     totalProducts: { count: 0, lowStockCount: 0 },
-    lowStockProducts: { count: 0, items: [] },
+    lowStockProducts: [],
     recentSales: [],
     loading: true,
     error: null
@@ -122,7 +119,7 @@ export function useDashboardStats() {
         dailySales: { amount: dailyAmount, count: dailyCount, percentageChange },
         totalSales: { amount: totalAmount, count: totalCount, productsSold: totalProductsSold },
         totalProducts: { count: productsResult.data || 0, lowStockCount: lowStockResult.data?.length || 0 },
-        lowStockProducts: { count: lowStockResult.data?.length || 0, items: lowStockResult.data || [] },
+        lowStockProducts: lowStockResult.data || [],
         recentSales: recentSalesResult.data || [],
         loading: false,
         error: null

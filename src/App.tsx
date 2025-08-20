@@ -7,7 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { NetworkErrorHandler } from "@/components/NetworkErrorHandler";
+
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
@@ -51,7 +51,6 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <NetworkErrorHandler>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -254,7 +253,6 @@ const App = () => (
               </Routes>
             </AuthProvider>
           </BrowserRouter>
-        </NetworkErrorHandler>
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>

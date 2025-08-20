@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, MoreHorizontal, RefreshCw, RotateCcw, ArrowRightLeft, AlertTriangle } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, useMemo } from "react"
 import { useCurrency } from "@/hooks/useCurrency"
 import { supabase } from "@/integrations/supabase/client"
@@ -22,6 +23,10 @@ export default function Returns() {
   const [error, setError] = useState<string | null>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [selectedReturn, setSelectedReturn] = useState<any>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [returnItems, setReturnItems] = useState<any[]>([])
+  const [returnsPage, setReturnsPage] = useState(1)
+  const [returnsPageSize, setReturnsPageSize] = useState<number | 'all'>(20)
 
   // ✅ SOLUTION : Vérification complète des permissions
   const canCreateReturn = userProfile?.role && ['Vendeur', 'Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
@@ -121,11 +126,8 @@ export default function Returns() {
       return
     }
     setSelectedReturn(returnItem)
-    // TODO: Implémenter la modal de détails
-    toast({
-      title: "Fonctionnalité à venir",
-      description: "Vue détaillée en cours de développement",
-    })
+    fetchReturnItems(returnItem.id, returnItem)
+    setShowDetailsModal(true)
   }
 
   const handlePrintReceipt = (returnItem: any) => {
@@ -137,11 +139,7 @@ export default function Returns() {
       })
       return
     }
-    // TODO: Implémenter l'impression
-    toast({
-      title: "Fonctionnalité à venir",
-      description: "Impression en cours de développement",
-    })
+    printReturnReceipt(returnItem)
   }
 
   const handleEditReturn = (returnItem: any) => {
@@ -191,6 +189,107 @@ export default function Returns() {
     }
   }
 
+  const fetchReturnItems = async (returnId: string, returnData?: any) => {
+    try {
+      // Récupérer les items du retour
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('return_items')
+        .select('product_name, product_sku, returned_quantity, original_unit_price, original_total_price, exchange_product_id, exchange_quantity, exchange_total_price, price_difference')
+        .eq('return_id', returnId)
+      
+      if (itemsError) throw itemsError
+      setReturnItems(itemsData || [])
+
+      // Récupérer les informations de l'utilisateur qui a traité le retour
+      const returnToProcess = returnData || selectedReturn
+      if (returnToProcess?.processed_by) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('first_name, last_name, email')
+          .eq('id', returnToProcess.processed_by)
+          .single()
+        
+        if (!userError && userData) {
+          const userName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email || 'Utilisateur inconnu'
+          
+          // Mettre à jour le retour avec le nom de l'utilisateur
+          setSelectedReturn(prev => ({
+            ...prev,
+            processed_by_name: userName
+          }))
+          
+          console.log('Nom utilisateur récupéré:', userName)
+        } else {
+          console.log('Erreur récupération utilisateur:', userError)
+        }
+      } else {
+        console.log('Aucun processed_by trouvé:', returnToProcess?.processed_by)
+      }
+    } catch (e) {
+      console.error('Erreur chargement détails retour:', e)
+      setReturnItems([])
+      toast({ title: 'Erreur', description: 'Impossible de charger les détails du retour', variant: 'destructive' })
+    }
+  }
+
+  const printReturnReceipt = async (returnItem: any) => {
+    try {
+      // S'assurer d'avoir les items
+      let items = returnItems
+      if (!items || items.length === 0) {
+        const { data } = await supabase
+          .from('return_items')
+          .select('product_name, product_sku, returned_quantity, original_unit_price, original_total_price, exchange_product_id, exchange_quantity, exchange_total_price, price_difference')
+          .eq('return_id', returnItem.id)
+        items = data || []
+      }
+
+      const content = `
+===============================
+BON DE RETOUR / ECHANGE - ${returnItem.return_code}
+===============================
+
+Date: ${new Date(returnItem.created_at).toLocaleDateString('fr-FR')}
+Client: ${returnItem.customer_name || 'Client anonyme'}
+Vente d'origine: ${returnItem.original_sale?.sale_code || 'N/A'}
+Type: ${returnItem.return_type === 'exchange' ? 'ECHANGE' : 'RETOUR'}
+Statut: ${returnItem.return_status}
+
+--- LIGNES ---
+${(items || []).map((it: any, idx: number) => {
+  const base = `${idx + 1}. ${[it.product_name, it.product_sku].filter(Boolean).join(' ')} - Qté: ${it.returned_quantity} x ${formatAmount(it.original_unit_price)} = ${formatAmount(it.original_total_price)}`
+  if (it.exchange_product_id) {
+    return `${base}\n   Echange: Qté ${it.exchange_quantity} | Total ${formatAmount(it.exchange_total_price || 0)} | Différence ${formatAmount(it.price_difference || 0)}`
+  }
+  return base
+}).join('\n')}
+
+===============================
+`;
+
+      const w = window.open('', '_blank')
+      if (w) {
+        w.document.write(`
+          <html>
+            <head>
+              <title>Retour ${returnItem.return_code}</title>
+              <style>body{font-family:monospace;font-size:12px;white-space:pre-wrap}</style>
+            </head>
+            <body>
+              <div>${content.replace(/</g, '&lt;')}</div>
+              <script>window.print(); window.close();</script>
+            </body>
+          </html>
+        `)
+        w.document.close()
+        toast({ title: 'Impression lancée', description: 'Le bon de retour a été envoyé à l\'imprimante' })
+      }
+    } catch (e) {
+      console.error('Erreur impression bon retour:', e)
+      toast({ title: "Erreur d'impression", description: 'Impossible d\'imprimer le bon', variant: 'destructive' })
+    }
+  }
+
   // ✅ SOLUTION : Statistiques optimisées avec useMemo
   const { totalReturns, totalExchanges, totalAmount } = useMemo(() => {
     const returnsList = returns.filter(ret => ret.return_type !== 'exchange')
@@ -213,6 +312,19 @@ export default function Returns() {
       returnItem.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [returns, searchTerm])
+
+  const returnsTotalPages = returnsPageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredReturns.length / (returnsPageSize as number)))
+  const currentReturnsPage = Math.min(returnsPage, returnsTotalPages)
+  const paginatedReturns = returnsPageSize === 'all'
+    ? filteredReturns
+    : filteredReturns.slice(
+        (currentReturnsPage - 1) * (returnsPageSize as number),
+        currentReturnsPage * (returnsPageSize as number)
+      )
+
+  useEffect(() => {
+    setReturnsPage(1)
+  }, [returnsPageSize, searchTerm])
 
   // ✅ SOLUTION : Affichage d'erreur avec possibilité de retry
   if (error && !canViewReturns) {
@@ -332,13 +444,29 @@ export default function Returns() {
                 placeholder="Rechercher un retour/échange..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
               />
             </div>
-            <Button variant="outline" size="touch" className="gap-2">
-              <Filter className="w-4 h-4" />
-              Filtres
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Par page</span>
+                <Select value={String(returnsPageSize)} onValueChange={(v) => setReturnsPageSize(v === 'all' ? 'all' : parseInt(v))}>
+                  <SelectTrigger className="h-8 w-[92px]">
+                    <SelectValue placeholder="20" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="outline" size="touch" className="gap-2">
+                <Filter className="w-4 h-4" />
+                Filtres
+              </Button>
+            </div>
           </div>
 
           {/* Returns List */}
@@ -374,28 +502,94 @@ export default function Returns() {
                   )}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Vente origine</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Raison</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredReturns.map((returnItem) => (
-                      <TableRow key={returnItem.id}>
-                        <TableCell className="font-medium">{returnItem.return_code}</TableCell>
-                        <TableCell>{getTypeBadge(returnItem)}</TableCell>
-                        <TableCell>{returnItem.original_sale?.sale_code || "N/A"}</TableCell>
-                        <TableCell>{returnItem.customer_name || "Client anonyme"}</TableCell>
-                        <TableCell className="max-w-[150px] truncate">{returnItem.return_reason}</TableCell>
-                        <TableCell>{getStatusBadge(returnItem.return_status)}</TableCell>
-                        <TableCell>
+                <>
+                  {/* Desktop table */}
+                  <div className="hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Vente origine</TableHead>
+                          <TableHead>Client</TableHead>
+                          <TableHead>Raison</TableHead>
+                          <TableHead>Statut</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedReturns.map((returnItem) => (
+                          <TableRow key={returnItem.id}>
+                            <TableCell className="font-medium">{returnItem.return_code}</TableCell>
+                            <TableCell>{getTypeBadge(returnItem)}</TableCell>
+                            <TableCell>{returnItem.original_sale?.sale_code || "N/A"}</TableCell>
+                            <TableCell>{returnItem.customer_name || "Client anonyme"}</TableCell>
+                            <TableCell className="max-w-[150px] truncate">{returnItem.return_reason}</TableCell>
+                            <TableCell>{getStatusBadge(returnItem.return_status)}</TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleViewDetails(returnItem)}>
+                                    Voir détails
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handlePrintReceipt(returnItem)}>
+                                    Imprimer bon
+                                  </DropdownMenuItem>
+                                  {canManageReturns && (
+                                    <DropdownMenuItem onClick={() => handleEditReturn(returnItem)}>
+                                      Modifier
+                                    </DropdownMenuItem>
+                                  )}
+                                  {canManageReturns && (
+                                    <DropdownMenuItem 
+                                      className="text-destructive"
+                                      onClick={() => handleCancelReturn(returnItem)}
+                                    >
+                                      Annuler
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="space-y-3 sm:hidden">
+                    {paginatedReturns.map((returnItem) => (
+                      <div key={returnItem.id} className="border rounded-lg p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{returnItem.return_code}</p>
+                            <p className="text-sm text-muted-foreground truncate">{returnItem.original_sale?.sale_code || 'N/A'}</p>
+                          </div>
+                          <div>
+                            {getStatusBadge(returnItem.return_status)}
+                          </div>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Type</span>
+                            <div className="font-medium">{returnItem.return_type === 'exchange' ? 'Échange' : 'Retour'}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-muted-foreground">Client</span>
+                            <div className="font-medium">{returnItem.customer_name || '—'}</div>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Raison</span>
+                            <div className="font-medium truncate">{returnItem.return_reason || '—'}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -415,20 +609,38 @@ export default function Returns() {
                                 </DropdownMenuItem>
                               )}
                               {canManageReturns && (
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={() => handleCancelReturn(returnItem)}
-                                >
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleCancelReturn(returnItem)}>
                                   Annuler
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentReturnsPage <= 1 || returnsPageSize === 'all'}
+                      onClick={() => setReturnsPage(p => Math.max(1, p - 1))}
+                    >
+                      Précédent
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Page {currentReturnsPage} / {returnsTotalPages}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentReturnsPage >= returnsTotalPages || returnsPageSize === 'all'}
+                      onClick={() => setReturnsPage(p => Math.min(returnsTotalPages, p + 1))}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -440,6 +652,120 @@ export default function Returns() {
         onOpenChange={setShowReturnModal}
         onSuccess={fetchReturns}
       />
+
+      {/* Modal Détails Retour */}
+      {showDetailsModal && selectedReturn && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Détails retour {selectedReturn.return_code}</h2>
+              <Button variant="ghost" onClick={() => setShowDetailsModal(false)}>✕</Button>
+            </div>
+            
+            {/* Informations générales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <label className="font-semibold text-sm text-blue-700 mb-2 block">Informations de base</label>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Code:</span> {selectedReturn.return_code}</div>
+                  <div><span className="font-medium">Type:</span> {selectedReturn.return_type === 'exchange' ? 'Échange' : 'Retour'}</div>
+                  <div><span className="font-medium">Statut:</span> {getStatusBadge(selectedReturn.return_status)}</div>
+                  <div><span className="font-medium">Date création:</span> {new Date(selectedReturn.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  {selectedReturn.updated_at && selectedReturn.updated_at !== selectedReturn.created_at && (
+                    <div><span className="font-medium">Dernière modification:</span> {new Date(selectedReturn.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg">
+                <label className="font-semibold text-sm text-green-700 mb-2 block">Vente d'origine</label>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Code vente:</span> {selectedReturn.original_sale?.sale_code || 'N/A'}</div>
+                  <div><span className="font-medium">Client:</span> {selectedReturn.customer_name || 'Client anonyme'}</div>
+                  <div><span className="font-medium">Raison:</span> {selectedReturn.return_reason || 'Non spécifiée'}</div>
+                  {selectedReturn.return_notes && (
+                    <div><span className="font-medium">Notes:</span> {selectedReturn.return_notes}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <label className="font-semibold text-sm text-orange-700 mb-2 block">Informations financières</label>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Montant total retour:</span> {formatAmount(returnItems.reduce((sum, item) => sum + (item.original_total_price || 0), 0))}</div>
+                  <div><span className="font-medium">Montant total échange:</span> {formatAmount(returnItems.reduce((sum, item) => sum + (item.exchange_total_price || 0), 0))}</div>
+                  <div><span className="font-medium">Différence totale:</span> {formatAmount(returnItems.reduce((sum, item) => sum + (item.price_difference || 0), 0))}</div>
+                  {selectedReturn.processed_by && (
+                    <div><span className="font-medium">Traité par:</span> {selectedReturn.processed_by_name || selectedReturn.processed_by}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Détails des lignes */}
+            <div className="mb-6">
+              <label className="font-semibold text-lg text-gray-800 mb-4 block">Détail des produits</label>
+              <div className="space-y-3">
+                {(returnItems || []).map((it, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Produit retourné */}
+                      <div className="bg-red-50 p-3 rounded-lg">
+                        <h4 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4" />
+                          Produit retourné
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div><span className="font-medium">Nom:</span> {it.product_name || 'N/A'}</div>
+                          <div><span className="font-medium">SKU:</span> {it.product_sku || 'N/A'}</div>
+                          <div><span className="font-medium">Quantité:</span> {it.returned_quantity}</div>
+                          <div><span className="font-medium">Prix unitaire:</span> {formatAmount(it.original_unit_price)}</div>
+                          <div><span className="font-medium">Prix total:</span> {formatAmount(it.original_total_price)}</div>
+                        </div>
+                      </div>
+
+                      {/* Produit d'échange (si applicable) */}
+                      {it.exchange_product_id ? (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <h4 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                            <ArrowRightLeft className="w-4 h-4" />
+                            Produit d'échange
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div><span className="font-medium">Quantité:</span> {it.exchange_quantity}</div>
+                            <div><span className="font-medium">Prix total échange:</span> {formatAmount(it.exchange_total_price || 0)}</div>
+                            <div><span className="font-medium">Différence:</span> {formatAmount(it.price_difference || 0)}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <h4 className="font-semibold text-gray-700 mb-2">Aucun échange</h4>
+                          <p className="text-sm text-gray-600">Produit retourné sans échange</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {(!returnItems || returnItems.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <RefreshCw className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Aucune ligne de produit pour ce retour</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowDetailsModal(false)}>Fermer</Button>
+              <Button onClick={() => printReturnReceipt(selectedReturn)} className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Imprimer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

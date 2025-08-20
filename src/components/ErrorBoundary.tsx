@@ -2,7 +2,6 @@ import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
 interface Props {
   children: ReactNode
@@ -49,14 +48,13 @@ interface ErrorFallbackProps {
 }
 
 function ErrorFallback({ error, errorInfo }: ErrorFallbackProps) {
-  const navigate = useNavigate()
-
   const handleRetry = () => {
     window.location.reload()
   }
 
   const handleGoHome = () => {
-    navigate('/dashboard')
+    // Utiliser window.location au lieu de navigate pour éviter l'erreur de contexte
+    window.location.href = '/dashboard'
   }
 
   return (

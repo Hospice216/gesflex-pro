@@ -7,9 +7,12 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Settings, Store, Users, Bell, Shield, Palette, Database, Globe } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 export default function SettingsPage() {
+  const { toast } = useToast()
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -22,6 +25,22 @@ export default function SettingsPage() {
     maintenanceMode: false,
     debugMode: false
   })
+
+  const [taxRate, setTaxRate] = useState<string>("20")
+
+  useEffect(() => {
+    const loadTax = async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'sales.tax_rate')
+        .maybeSingle()
+      if (!error && data?.setting_value) {
+        setTaxRate(String(data.setting_value))
+      }
+    }
+    loadTax()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -98,6 +117,51 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="address">Adresse principale</Label>
                 <Input id="address" defaultValue="123 Rue de la République, 75001 Paris" />
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="tax_rate">TVA (%)</Label>
+                  <Input
+                    id="tax_rate"
+                    type="number"
+                    step="0.01"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      const value = parseFloat(taxRate)
+                      if (isNaN(value) || value < 0 || value > 100) {
+                        toast({ title: 'Valeur invalide', description: 'Entrez un pourcentage entre 0 et 100', variant: 'destructive' })
+                        return
+                      }
+                      const { error } = await supabase
+                        .from('system_settings')
+                        .upsert({
+                          setting_key: 'sales.tax_rate',
+                          setting_value: String(value),
+                          setting_type: 'number',
+                          category: 'sales',
+                          description: 'TVA %',
+                          is_required: false,
+                          is_public: true,
+                        }, { onConflict: 'setting_key' })
+                      if (error) {
+                        toast({ title: 'Erreur', description: "Impossible d'enregistrer la TVA", variant: 'destructive' })
+                      } else {
+                        toast({ title: 'Enregistré', description: 'TVA mise à jour' })
+                      }
+                    }}
+                  >
+                    Enregistrer la TVA
+                  </Button>
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
