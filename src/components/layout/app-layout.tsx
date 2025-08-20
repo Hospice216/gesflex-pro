@@ -1,7 +1,8 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { useState } from "react"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Button } from "@/components/ui/button"
-import { Bell, User, LogOut } from "lucide-react"
+import { Bell, User, LogOut, Menu } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,22 +19,38 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { signOut, userProfile } = useAuth()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   
   const handleLogout = () => {
     signOut()
   }
 
+  const toggleMobileNav = () => {
+    setMobileNavOpen(!mobileNavOpen)
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar userRole={userProfile?.role || 'Vendeur'} />
+        <AppSidebar 
+          userRole={userProfile?.role || 'Vendeur'} 
+          isMobileOpen={mobileNavOpen}
+          onMobileToggle={toggleMobileNav}
+        />
         
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
             <div className="flex items-center justify-between h-full px-4">
               <div className="flex items-center gap-4">
-                <SidebarTrigger className="lg:hidden" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleMobileNav}
+                  className="lg:hidden h-10 w-10"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
                 <div className="hidden lg:block">
                   <h1 className="text-lg font-semibold text-foreground">
                     GesFlex Pro

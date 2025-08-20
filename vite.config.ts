@@ -10,7 +10,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '/',
+  base: process.env.NODE_ENV === 'production' ? '/gesflex-pro/' : '/',
   build: {
     outDir: 'dist',
     sourcemap: false,
