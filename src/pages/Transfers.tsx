@@ -59,11 +59,11 @@ export default function Transfers() {
     dateRange: { from: null, to: null }
   })
 
-  // ✅ SOLUTION : Vérification complète des permissions
-  const canCreateTransfer = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
-  const canValidateTransfer = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
-  const canViewAllTransfers = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
-  const canViewTransfers = userProfile?.role && ['Vendeur', 'Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
+  // ✅ SOLUTION : Vérification complète des permissions - SuperAdmin uniquement
+  const canCreateTransfer = userProfile?.role === 'SuperAdmin'
+  const canValidateTransfer = userProfile?.role === 'SuperAdmin'
+  const canViewAllTransfers = userProfile?.role === 'SuperAdmin'
+  const canViewTransfers = userProfile?.role === 'SuperAdmin'
 
   useEffect(() => {
     if (canViewTransfers) {
@@ -111,25 +111,8 @@ export default function Transfers() {
         `)
         .order("created_at", { ascending: false })
 
-      // ✅ SÉCURITÉ : Filtrage basé sur les permissions d'accès aux magasins
-      if (!canViewAllTransfers) {
-        // Manager et Vendeur ne voient que les transferts impliquant leurs magasins assignés
-        const { data: userStores, error: userStoresError } = await supabase
-          .from("user_stores")
-          .select("store_id")
-          .eq("user_id", userProfile.id)
-
-        if (userStoresError) throw userStoresError
-
-        if (userStores && userStores.length > 0) {
-          const storeIds = userStores.map(us => us.store_id)
-          query = query.or(`source_store_id.in.(${storeIds.join(',')}),destination_store_id.in.(${storeIds.join(',')})`)
-        } else {
-          // Si aucun magasin assigné, retourner une liste vide
-          setTransfers([])
-          return
-        }
-      }
+      // ✅ SÉCURITÉ : SuperAdmin voit tous les transferts
+      // Pas de filtrage nécessaire pour SuperAdmin
 
       const { data, error } = await query
 

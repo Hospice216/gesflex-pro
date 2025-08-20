@@ -301,7 +301,7 @@ export default function Dashboard() {
           </div>
 
           {/* ✅ AMÉLIORÉ : Actions rapides avec tooltips et meilleure UX */}
-          {userProfile?.role === 'Manager' && (
+          {(userProfile?.role === 'Manager' || userProfile?.role === 'SuperAdmin') && (
             <div className="flex flex-wrap gap-2">
               <Button 
                 onClick={() => navigate('/sales')} 
@@ -311,15 +311,17 @@ export default function Dashboard() {
                 <Plus className="w-4 h-4 mr-2" />
                 Nouvelle vente
               </Button>
-              <Button 
-                onClick={() => navigate('/transfers')} 
-                variant="outline"
-                className="border-blue-300 text-blue-700 hover:bg-blue-50 transition-all duration-200"
-                title="Créer un nouveau transfert - Accès direct à la page des transferts"
-              >
-                <Package className="w-4 h-4 mr-2" />
-                Nouveau transfert
-              </Button>
+              {userProfile?.role === 'SuperAdmin' && (
+                <Button 
+                  onClick={() => navigate('/transfers')} 
+                  variant="outline"
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50 transition-all duration-200"
+                  title="Créer un nouveau transfert - Accès direct à la page des transferts"
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  Nouveau transfert
+                </Button>
+              )}
             </div>
           )}
 

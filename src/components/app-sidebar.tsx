@@ -76,7 +76,7 @@ const menuItems = [
     title: "Transferts", 
     url: "/transfers", 
     icon: Truck, 
-    roles: ["Manager", "Admin", "SuperAdmin"] 
+    roles: ["SuperAdmin"] 
   },
   { 
     title: "Inventaire", 

@@ -12,7 +12,7 @@ import { useSystemSettings } from "@/hooks/useSystemSettings"
 import { useAuth } from "@/contexts/AuthContext"
 
 export default function Configuration() {
-  const { user } = useAuth()
+  const { user, userProfile } = useAuth()
   const { 
     settings, 
     loading, 
@@ -121,18 +121,20 @@ export default function Configuration() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Transferts automatiques</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Permettre les transferts automatiques entre magasins
-                  </p>
+              {userProfile?.role === 'SuperAdmin' && (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Transferts automatiques</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permettre les transferts automatiques entre magasins (SuperAdmin uniquement)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.enableStoreTransfers}
+                    onCheckedChange={(checked) => updateSetting('enableStoreTransfers', checked)}
+                  />
                 </div>
-                <Switch
-                  checked={settings.enableStoreTransfers}
-                  onCheckedChange={(checked) => updateSetting('enableStoreTransfers', checked)}
-                />
-              </div>
+              )}
 
               <Separator />
 
