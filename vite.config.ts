@@ -1,10 +1,47 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg'],
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+      },
+      manifest: {
+        name: 'GesFlex',
+        short_name: 'GesFlex',
+        description: "GesFlex - Application SaaS de gestion d'entreprise de vente multi-magasins",
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        theme_color: '#0ea5e9',
+        background_color: '#ffffff',
+        icons: [
+          {
+            src: '/favicon.ico',
+            sizes: '16x16 32x32 48x48 64x64',
+            type: 'image/x-icon'
+          },
+          {
+            src: '/placeholder.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true
+      }
+    })
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
