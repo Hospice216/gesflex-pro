@@ -62,7 +62,7 @@ const App = () => (
                 <Route 
                   path="/admin" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'dashboard'}>
                       <AppLayout>
                         <Admin />
                       </AppLayout>
@@ -72,7 +72,7 @@ const App = () => (
                 <Route 
                   path="/dashboard" 
                   element={
-                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']} pageKey={'dashboard'}>
                       <AppLayout>
                         <Dashboard />
                       </AppLayout>
@@ -82,7 +82,7 @@ const App = () => (
                 <Route 
                   path="/products" 
                   element={
-                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']} pageKey={'products'}>
                       <AppLayout>
                         <Products />
                       </AppLayout>
@@ -92,7 +92,7 @@ const App = () => (
                 <Route 
                   path="/arrivals" 
                   element={
-                    <ProtectedRoute allowedRoles={['Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Manager', 'Admin', 'SuperAdmin']} pageKey={'arrivals'}>
                       <AppLayout>
                         <Arrivals />
                       </AppLayout>
@@ -102,7 +102,7 @@ const App = () => (
                 <Route 
                   path="/purchases" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'purchases'}>
                       <AppLayout>
                         <Purchases />
                       </AppLayout>
@@ -112,7 +112,7 @@ const App = () => (
                 <Route 
                   path="/sales" 
                   element={
-                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']} pageKey={'sales'}>
                       <AppLayout>
                         <Sales />
                       </AppLayout>
@@ -122,7 +122,7 @@ const App = () => (
                 <Route 
                   path="/returns" 
                   element={
-                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']} pageKey={'returns'}>
                       <AppLayout>
                         <Returns />
                       </AppLayout>
@@ -132,7 +132,7 @@ const App = () => (
                 <Route 
                   path="/transfers" 
                   element={
-                    <ProtectedRoute allowedRoles={['SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['SuperAdmin']} pageKey={'transfers'}>
                       <AppLayout>
                         <Transfers />
                       </AppLayout>
@@ -142,7 +142,7 @@ const App = () => (
                 <Route 
                   path="/inventory" 
                   element={
-                    <ProtectedRoute allowedRoles={['Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Manager', 'Admin', 'SuperAdmin']} pageKey={'inventory'}>
                       <AppLayout>
                         <Inventory />
                       </AppLayout>
@@ -152,7 +152,7 @@ const App = () => (
                 <Route 
                   path="/users" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'users'}>
                       <AppLayout>
                         <Users />
                       </AppLayout>
@@ -162,7 +162,7 @@ const App = () => (
                 <Route 
                   path="/stores" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'stores'}>
                       <AppLayout>
                         <Stores />
                       </AppLayout>
@@ -172,7 +172,7 @@ const App = () => (
                 <Route 
                   path="/suppliers" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'suppliers'}>
                       <AppLayout>
                         <Suppliers />
                       </AppLayout>
@@ -182,7 +182,7 @@ const App = () => (
                 <Route 
                   path="/financial" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'financial'}>
                       <AppLayout>
                         <FinancialManagement />
                       </AppLayout>
@@ -192,7 +192,7 @@ const App = () => (
                 <Route 
                   path="/analytics" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'analytics'}>
                       <AppLayout>
                         <Analytics />
                       </AppLayout>
@@ -202,7 +202,7 @@ const App = () => (
                 <Route 
                   path="/reports" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'reports'}>
                       <AppLayout>
                         <Reports />
                       </AppLayout>
@@ -212,7 +212,7 @@ const App = () => (
                 <Route 
                   path="/settings" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'settings'}>
                       <AppLayout>
                         <Settings />
                       </AppLayout>
@@ -222,7 +222,7 @@ const App = () => (
                 <Route 
                   path="/configuration" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['SuperAdmin']} pageKey={'configuration'}>
                       <AppLayout>
                         <Configuration />
                       </AppLayout>
@@ -232,7 +232,7 @@ const App = () => (
                 <Route 
                   path="/gamification" 
                   element={
-                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} pageKey={'gamification'}>
                       <AppLayout>
                         <Gamification />
                       </AppLayout>
@@ -242,7 +242,7 @@ const App = () => (
                 <Route 
                   path="/profile" 
                   element={
-                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']}>
+                    <ProtectedRoute allowedRoles={['Vendeur', 'Manager', 'Admin', 'SuperAdmin']} pageKey={'profile'}>
                       <AppLayout>
                         <Profile />
                       </AppLayout>

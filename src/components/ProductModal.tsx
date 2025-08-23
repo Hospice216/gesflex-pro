@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { Product, Category, Unit } from "@/integrations/supabase/types"
@@ -350,18 +351,13 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
             
             <div className="space-y-2">
               <Label htmlFor="category">Catégorie *</Label>
-              <Select value={formData.category_id} onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}>
-                <SelectTrigger className={validationErrors.category_id ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Sélectionner une catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.category_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+                options={categories.map(c => ({ value: c.id, label: c.name }))}
+                placeholder="Sélectionner une catégorie"
+                triggerClassName={validationErrors.category_id ? "border-destructive" : ""}
+              />
               {validationErrors.category_id && (
                 <p className="text-sm text-destructive flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />
@@ -395,18 +391,13 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
             
             <div className="space-y-2">
               <Label htmlFor="unit">Unité *</Label>
-              <Select value={formData.unit_id} onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}>
-                <SelectTrigger className={validationErrors.unit_id ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Sélectionner une unité" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name} ({unit.symbol})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.unit_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, unit_id: value }))}
+                options={units.map(u => ({ value: u.id, label: `${u.name} (${u.symbol})` }))}
+                placeholder="Sélectionner une unité"
+                triggerClassName={validationErrors.unit_id ? "border-destructive" : ""}
+              />
               {validationErrors.unit_id && (
                 <p className="text-sm text-destructive flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />

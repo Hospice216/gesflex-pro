@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/contexts/AuthContext"
@@ -270,51 +271,33 @@ export function PurchaseModal({ isOpen, onClose, onSuccess, purchase }: Purchase
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="store">Magasin *</Label>
-              <Select value={formData.store_id} onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un magasin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.store_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}
+                options={stores.map(s => ({ value: s.id, label: s.name }))}
+                placeholder="Sélectionner un magasin"
+              />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="supplier">Fournisseur *</Label>
-              <Select value={formData.supplier_id} onValueChange={(value) => setFormData(prev => ({ ...prev, supplier_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un fournisseur" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.supplier_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, supplier_id: value }))}
+                options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                placeholder="Sélectionner un fournisseur"
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="product">Produit *</Label>
-            <Select value={formData.product_id} onValueChange={handleProductChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un produit" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} - {product.sku}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={formData.product_id}
+              onValueChange={handleProductChange}
+              options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
+              placeholder="Sélectionner un produit"
+            />
             {selectedProduct && (
               <p className="text-sm text-muted-foreground">
                 Unité: {selectedProduct.units?.name} ({selectedProduct.units?.symbol})

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -63,7 +64,7 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, current_sale_price")
+        .select("*")
         .eq("is_active", true)
         .order("name")
 
@@ -141,10 +142,10 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
       }
     } catch (error) {
       console.error('Erreur recherche vente:', error)
-      const errorMessage = handleSupabaseError(error)
+      const errorMessage = handleSupabaseError(error, 'search sale')
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: errorMessage.error,
         variant: "destructive",
       })
     } finally {
@@ -392,18 +393,13 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Produit</Label>
-                      <Select value={formData.returned_product_id} onValueChange={(value) => setFormData(prev => ({ ...prev, returned_product_id: value }))}>
-                        <SelectTrigger className="h-10 sm:h-12">
-                          <SelectValue placeholder="Sélectionner" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {saleData.sale_items.map((item) => (
-                            <SelectItem key={item.id} value={item.product_id}>
-                              {item.products.name} - {item.products.sku} (Qté: {item.quantity})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={formData.returned_product_id}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, returned_product_id: value }))}
+                        options={saleData.sale_items.map(item => ({ value: item.product_id, label: `${item.products.name} - ${item.products.sku} (Qté: ${item.quantity})` }))}
+                        placeholder="Sélectionner"
+                        triggerClassName="h-10 sm:h-12"
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -444,18 +440,13 @@ export default function ReturnExchangeModal({ open, onOpenChange, onSuccess }: R
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Nouveau produit</Label>
-                      <Select value={formData.new_product_id} onValueChange={(value) => setFormData(prev => ({ ...prev, new_product_id: value }))}>
-                        <SelectTrigger className="h-10 sm:h-12">
-                          <SelectValue placeholder="Aucun échange" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} - {product.sku} ({product.current_sale_price}€)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={formData.new_product_id}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, new_product_id: value }))}
+                        options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku} (${p.current_sale_price}€)` }))}
+                        placeholder="Aucun échange"
+                        triggerClassName="h-10 sm:h-12"
+                      />
                     </div>
 
                     <div className="space-y-2">

@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge"
 import { Settings, Store, Database, Shield, AlertTriangle, Save, Zap, Bell, BarChart3, DollarSign } from "lucide-react"
 import { useSystemSettings } from "@/hooks/useSystemSettings"
 import { useAuth } from "@/contexts/AuthContext"
+import { pagesConfig } from "@/config/pages"
+import { useManagePageAccess } from "@/hooks/useManagePageAccess"
+import { useEffect, useMemo, useState } from "react"
+import { supabase } from "@/integrations/supabase/client"
 
 export default function Configuration() {
   const { user, userProfile } = useAuth()
@@ -22,6 +26,27 @@ export default function Configuration() {
     saveAllSettings, 
     resetToDefaults 
   } = useSystemSettings()
+  const { loading: accessLoading, error: accessError, store, setSingle, setMany } = useManagePageAccess()
+
+  const [users, setUsers] = useState<any[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const selectedUser = useMemo(() => users.find(u => u.id === selectedUserId) || null, [users, selectedUserId])
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      const { data } = await supabase.from('users').select('id, first_name, last_name, role, status').order('created_at', { ascending: false })
+      setUsers(data || [])
+    }
+    if (userProfile?.role === 'SuperAdmin') {
+      loadUsers()
+    }
+  }, [userProfile?.role])
+
+  useEffect(() => {
+    if (!selectedUserId && users.length > 0) {
+      setSelectedUserId(users[0].id)
+    }
+  }, [users, selectedUserId])
 
   const handleSave = async () => {
     try {
@@ -100,12 +125,13 @@ export default function Configuration() {
       )}
 
       <Tabs defaultValue="stores" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="stores">Multi-Magasins</TabsTrigger>
           <TabsTrigger value="system">Système</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="currency">Devise</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="pages">Pages</TabsTrigger>
         </TabsList>
 
         {/* Multi-Magasins Settings */}
@@ -574,6 +600,82 @@ export default function Configuration() {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Pages access settings */}
+        <TabsContent value="pages" className="space-y-6">
+          <Card className="bg-gradient-card shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                Gestion d'accès aux pages
+              </CardTitle>
+              <CardDescription>
+                Activer/désactiver l'accès aux pages par utilisateur
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {accessError && (
+                <div className="text-sm text-destructive">{accessError}</div>
+              )}
+              {userProfile?.role !== 'SuperAdmin' && (
+                <div className="text-sm text-muted-foreground">
+                  Seul le SuperAdmin peut modifier les accès aux pages.
+                </div>
+              )}
+
+              {userProfile?.role === 'SuperAdmin' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                  <div>
+                    <Label>Utilisateur</Label>
+                    <Select value={selectedUserId || ''} onValueChange={setSelectedUserId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un utilisateur" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.first_name} {u.last_name} — {u.role} ({u.status})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {accessLoading ? (
+                <div className="text-sm text-muted-foreground">Chargement des accès...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pagesConfig.map((p) => (
+                    <div key={p.key} className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-1">
+                        <div className="font-medium">{p.label}</div>
+                        <div className="text-xs text-muted-foreground">Chemin: {p.path}</div>
+                        <div className="text-xs text-muted-foreground">Rôles autorisés: {p.allowedRoles.join(', ')}</div>
+                      </div>
+                      <Switch
+                        checked={(() => {
+                          const targetUser = (userProfile?.role === 'SuperAdmin' && selectedUser) ? selectedUser : userProfile
+                          if (!targetUser) return false
+                          const hasRole = p.allowedRoles.includes(targetUser.role)
+                          const overrides = (store[targetUser.id] || {}) as any
+                          const val = overrides[p.key]
+                          return typeof val === 'boolean' ? val : hasRole
+                        })()}
+                        onCheckedChange={(v) => {
+                          const targetUser = (userProfile?.role === 'SuperAdmin' && selectedUser) ? selectedUser : userProfile
+                          if (!targetUser) return
+                          setSingle(targetUser.id, p.key as any, v)
+                        }}
+                        disabled={userProfile?.role !== 'SuperAdmin'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

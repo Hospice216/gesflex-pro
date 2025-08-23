@@ -16,6 +16,7 @@ import { checkStockAvailability } from "@/lib/utils/inventory-management"
 import { Product, Store, PaymentMethod } from "@/integrations/supabase/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { getUserAccessibleStores, canAccessStore } from "@/lib/utils/store-permissions"
+import { SearchableSelect } from "@/components/SearchableSelect"
 
 interface SaleModalProps {
   open: boolean
@@ -376,18 +377,13 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="store">Magasin *</Label>
-              <Select value={formData.store_id} onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}>
-                <SelectTrigger className="h-10 sm:h-12">
-                  <SelectValue placeholder="Sélectionner un magasin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.store_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}
+                options={stores.map(s => ({ value: s.id, label: s.name }))}
+                placeholder="Sélectionner un magasin"
+                triggerClassName="h-10 sm:h-12"
+              />
             </div>
 
             <div className="space-y-2">
@@ -452,18 +448,13 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label>Produit</Label>
-                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                    <SelectTrigger className="h-10 sm:h-12">
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {product.sku}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={selectedProduct}
+                    onValueChange={setSelectedProduct}
+                    options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
+                    placeholder="Sélectionner"
+                    triggerClassName="h-10 sm:h-12"
+                  />
                 </div>
 
                 <div className="space-y-2">

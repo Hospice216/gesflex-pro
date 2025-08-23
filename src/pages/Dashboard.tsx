@@ -290,7 +290,7 @@ export default function Dashboard() {
 
   return (
     <DashboardErrorBoundary>
-      <div className="space-y-6 p-6">
+      <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -339,8 +339,8 @@ export default function Dashboard() {
 
         {/* ✅ NOUVEAU : Section de filtres et statistiques avancées */}
         <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <CardHeader className="pb-3 sm:pb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
               <div>
                 <CardTitle className="text-xl">Statistiques avancées</CardTitle>
                 <CardDescription>
@@ -348,10 +348,10 @@ export default function Dashboard() {
                 </CardDescription>
               </div>
               
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {/* Filtre Période appliqué uniquement aux cartes personnelles */}
                 <Select value={personalPeriod} onValueChange={(v: string) => setPersonalPeriod(v as PeriodType)}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -383,18 +383,18 @@ export default function Dashboard() {
               </div>
             </div>
           </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4 sm:space-y-6">
             {/* En-tête propre */}
 
             {/* Statistiques principales */}
             {periodStatsLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+                  <div key={i} className="h-20 sm:h-24 bg-muted animate-pulse rounded-lg" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                   <CardContent className="p-4 text-center">
                     <DollarSign className="w-8 h-8 text-blue-600 mx-auto mb-2" />
@@ -447,7 +447,7 @@ export default function Dashboard() {
 
             {/* Filtres (réservés Manager/Admin) */}
             {!isSeller && (
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">
                   Période
@@ -459,7 +459,7 @@ export default function Dashboard() {
                   )}
                 </label>
                 <Select value={selectedPeriod} onValueChange={(value: string) => setSelectedPeriod(value as PeriodType)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Sélectionner une période" />
                   </SelectTrigger>
                   <SelectContent>
@@ -482,7 +482,7 @@ export default function Dashboard() {
               <div className="flex-1">
                 <label className="text-sm font-medium mb-2 block">Magasin</label>
                 <Select value={selectedStore} onValueChange={setSelectedStore}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Tous les magasins" />
                   </SelectTrigger>
                   <SelectContent>
@@ -518,13 +518,13 @@ export default function Dashboard() {
 
             {/* Statistiques de la période - Totaux magasin (masqué pour vendeurs) */}
             {isSeller ? null : periodStatsLoading || salesStatsLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
                 ))}
               </div>
             ) : storeTotals && Object.keys(storeTotals).length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <Card className="bg-background/50">
                   <CardContent className="p-4 text-center">
                     <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
@@ -565,13 +565,13 @@ export default function Dashboard() {
 
             {/* Produits les plus vendus (masqué pour vendeurs) */}
             {isSeller ? null : statsLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />
+                  <div key={i} className="h-10 sm:h-12 bg-muted animate-pulse rounded-lg" />
                 ))}
               </div>
             ) : topProducts && Array.isArray(topProducts) && topProducts.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <h4 className="font-semibold text-sm text-muted-foreground">Produits les plus vendus (magasin)</h4>
                 {topProducts.slice(0, 3).map((product, index) => (
                   <div key={product.product_id} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
@@ -630,7 +630,7 @@ export default function Dashboard() {
               </CardHeader>
             </Card>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
               {/* Recent Sales */}
               <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
                 <CardHeader>
@@ -652,18 +652,20 @@ export default function Dashboard() {
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {filteredRecentSales.slice(0, 5).map((sale) => (
-                        <div key={sale.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{sale.sale_code}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {sale.customer_name} • {format(new Date(sale.created_at), 'dd/MM/yyyy', { locale: fr })}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-sm">{formatAmount(sale.total_amount)}</p>
-                            <p className="text-xs text-muted-foreground">{sale.store_name}</p>
+                        <div key={sale.id} className="p-3 bg-white rounded-lg border border-green-200">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">{sale.sale_code}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {sale.customer_name} • {format(new Date(sale.created_at), 'dd/MM/yyyy', { locale: fr })}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-semibold text-sm">{formatAmount(sale.total_amount)}</p>
+                              <p className="text-xs text-muted-foreground">{sale.store_name}</p>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -689,22 +691,24 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground">Tous les produits ont un stock suffisant</p>
                     </div>
                   ) : (
-                                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200">
-                  {filteredLowStockProducts.slice(0, 5).map((product) => (
-                        <div key={product.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {product.sku} • {product.store_name}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <Badge variant="destructive" className="text-xs">
-                              Stock: {product.current_stock}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Alerte: {product.alert_stock}
-                            </p>
+                    <div className="space-y-2 sm:space-y-3">
+                      {filteredLowStockProducts.slice(0, 5).map((product) => (
+                        <div key={product.id} className="p-3 bg-white rounded-lg border border-orange-200">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">{product.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {product.sku} • {product.store_name}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <Badge variant="destructive" className="text-xs">
+                                Stock: {product.current_stock}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Alerte: {product.alert_stock}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       ))}

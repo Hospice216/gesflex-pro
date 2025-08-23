@@ -40,55 +40,64 @@ import {
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEffectivePageAccess } from "@/hooks/useEffectivePageAccess"
 
-// Menu items with roles
+// Menu items with roles and keys
 const menuItems = [
   { 
     title: "Tableau de bord", 
     url: "/dashboard", 
     icon: LayoutDashboard, 
+    key: 'dashboard',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Produits", 
     url: "/products", 
     icon: Package, 
+    key: 'products',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Arrivage", 
     url: "/arrivals", 
     icon: Truck, 
+    key: 'arrivals',
     roles: ["Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Achat", 
     url: "/purchases", 
     icon: ShoppingCart, 
+    key: 'purchases',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Ventes", 
     url: "/sales", 
     icon: TrendingUp, 
+    key: 'sales',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Retour & Échanges", 
     url: "/returns", 
     icon: RefreshCw, 
+    key: 'returns',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Transferts", 
     url: "/transfers", 
     icon: Truck, 
+    key: 'transfers',
     roles: ["SuperAdmin"] 
   },
   { 
     title: "Inventaire", 
     url: "/inventory", 
     icon: Warehouse, 
+    key: 'inventory',
     roles: ["Manager", "Admin", "SuperAdmin"] 
   },
 ]
@@ -98,42 +107,49 @@ const adminItems = [
     title: "Utilisateurs", 
     url: "/users", 
     icon: Users, 
+    key: 'users',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Magasins", 
     url: "/stores", 
     icon: Store, 
+    key: 'stores',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Fournisseurs", 
     url: "/suppliers", 
     icon: Building2, 
+    key: 'suppliers',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Finances", 
     url: "/financial", 
     icon: DollarSign, 
+    key: 'financial',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Analytics", 
     url: "/analytics", 
     icon: BarChart3, 
+    key: 'analytics',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Rapports", 
     url: "/reports", 
     icon: PieChart, 
+    key: 'reports',
     roles: ["Admin", "SuperAdmin"] 
   },
   { 
     title: "Configuration", 
     url: "/configuration", 
     icon: Settings, 
+    key: 'configuration',
     roles: ["Admin", "SuperAdmin"] 
   },
 ]
@@ -143,18 +159,21 @@ const userItems = [
     title: "Profil", 
     url: "/profile", 
     icon: User, 
+    key: 'profile',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Paramètres", 
     url: "/settings", 
     icon: Settings, 
+    key: 'settings',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
   { 
     title: "Gamification", 
     url: "/gamification", 
     icon: Trophy, 
+    key: 'gamification',
     roles: ["Vendeur", "Manager", "Admin", "SuperAdmin"] 
   },
 ]
@@ -170,6 +189,8 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
   const location = useLocation()
   const currentPath = location.pathname
   const collapsed = state === "collapsed"
+  const { userProfile } = useAuth()
+  const { access } = useEffectivePageAccess(userProfile?.id, userRole as any)
   
   // État local pour la navigation mobile (plus stable)
   const [isMobile, setIsMobile] = useState(false)
@@ -210,10 +231,14 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
       ? "bg-primary/10 text-primary font-medium border-r-2 border-primary" 
       : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
 
-  // Filter items based on user role
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole))
-  const filteredAdminItems = adminItems.filter(item => item.roles.includes(userRole))
-  const filteredUserItems = userItems.filter(item => item.roles.includes(userRole))
+  // Filter items based on user role and per-user page access
+  const isEnabled = (key?: string) => {
+    if (!key || !access) return true
+    return (access as any)[key] !== false
+  }
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole) && isEnabled(item.key as any))
+  const filteredAdminItems = adminItems.filter(item => item.roles.includes(userRole) && isEnabled(item.key as any))
+  const filteredUserItems = userItems.filter(item => item.roles.includes(userRole) && isEnabled(item.key as any))
 
   // Toggle section
   const toggleSection = (section: keyof typeof openSections) => {
