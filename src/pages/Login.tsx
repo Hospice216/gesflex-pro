@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Receipt, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
@@ -44,25 +45,32 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-      <Card className="w-full max-w-md bg-gradient-card shadow-elevated">
+    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(180deg,#eef5ff_0%,#ffffff_100%)] p-4">
+      <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="space-y-4 text-center">
-          <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto">
-            <Receipt className="w-8 h-8 text-white" />
+          <div className="mx-auto -mt-2 mb-1">
+            <img src="/logo.png" alt="GesFlex" className="w-12 h-12 mx-auto" />
           </div>
-          <div className="space-y-2">
-            <CardTitle className="text-2xl font-bold">
-              {isLogin ? "GesFlex" : "Inscription"}
-            </CardTitle>
-            <CardDescription>
-              {isLogin 
-                ? "Connectez-vous à votre compte" 
-                : "Créez votre compte GesFlex"
-              }
+          <div className="space-y-1">
+            <CardTitle className="text-3xl font-extrabold text-[#1e40af]">GesFlex</CardTitle>
+            <CardDescription className="text-sm">
+              Votre Système de gestion d'entreprise de vente professionnel
             </CardDescription>
           </div>
+          <div className="mt-2">
+            <Tabs value={isLogin ? 'login' : 'signup'} onValueChange={(v) => { setIsLogin(v === 'login'); setError(''); setSuccess('') }}>
+              <TabsList className="w-full grid grid-cols-2 bg-transparent p-0 h-10">
+                <TabsTrigger value="login" className="rounded-none border-b-2 data-[state=active]:border-[#3b82f6] data-[state=inactive]:border-transparent">
+                  Connexion
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="rounded-none border-b-2 data-[state=active]:border-[#3b82f6] data-[state=inactive]:border-transparent">
+                  Inscription
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
-        
+
         <CardContent>
           {error && (
             <Alert variant="destructive" className="mb-4">
@@ -140,22 +148,19 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? "Pas encore de compte ?" : "Déjà un compte ?"}
-              {" "}
-              <Button
-                variant="link"
-                className="p-0 h-auto text-primary"
-                onClick={() => {
-                  setIsLogin(!isLogin)
-                  setError("")
-                  setSuccess("")
-                }}
-              >
-                {isLogin ? "S'inscrire" : "Se connecter"}
-              </Button>
-            </p>
+          <div className="mt-6 text-center space-y-2">
+            <div>
+              <span className="text-xs text-muted-foreground">Besoin d'assistance ?</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Email : <a href="mailto:jasmesdiamond@gmail.com" className="text-primary">jasmesdiamond@gmail.com</a>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              WhatsApp : <a href="tel:+2290197212185" className="text-primary">+229 01 97 21 21 85</a>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Pour toute assistance (problèmes de connexion, création de compte)
+            </div>
           </div>
         </CardContent>
       </Card>

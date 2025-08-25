@@ -31,6 +31,7 @@ import PendingValidation from "./pages/PendingValidation";
 import Gamification from "./pages/Gamification";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { StartupOverlay } from "@/components/StartupOverlay";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+          <StartupOverlay />
           <Toaster />
           <Sonner />
           <BrowserRouter>

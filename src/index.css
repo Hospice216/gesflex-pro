@@ -129,3 +129,20 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes gf-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.03); }
+  }
+  @keyframes gf-fade {
+    0% { opacity: 0; letter-spacing: 0.02em; }
+    100% { opacity: 1; letter-spacing: 0.08em; }
+  }
+  .animate-gf-bounce {
+    animation: gf-bounce 1.2s ease-in-out infinite;
+  }
+  .animate-gf-fade {
+    animation: gf-fade 900ms ease forwards;
+  }
+}
