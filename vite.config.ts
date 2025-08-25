@@ -13,6 +13,9 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg', 'logo.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
       manifest: {
         name: 'GesFlex',
