@@ -39,6 +39,8 @@ export default function Sales() {
   const [errorReportText, setErrorReportText] = useState("")
   const [resolveText, setResolveText] = useState("")
   const [editForm, setEditForm] = useState<{ customer_name?: string | null; customer_email?: string | null; customer_phone?: string | null; payment_method?: string; notes?: string | null }>({})
+  const [editItems, setEditItems] = useState<Array<{ id: string; product_name: string; product_sku: string; quantity: number; unit_price: number; discount_reason?: string | null }>>([])
+  const [taxRate, setTaxRate] = useState<number>(0)
   const [salesPage, setSalesPage] = useState(1)
   const [salesPageSize, setSalesPageSize] = useState<number | 'all'>(20)
   const [filters, setFilters] = useState({
@@ -71,6 +73,23 @@ export default function Sales() {
       fetchSales()
     }
   }, [canViewSales])
+
+  useEffect(() => {
+    const fetchTaxRate = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'sales.tax_rate')
+          .maybeSingle()
+        if (!error && data && data.setting_value) {
+          const parsed = parseFloat(String(data.setting_value))
+          if (!isNaN(parsed)) setTaxRate(parsed)
+        }
+      } catch {}
+    }
+    fetchTaxRate()
+  }, [])
 
   const handleRetry = () => {
     setError(null)
@@ -238,18 +257,57 @@ export default function Sales() {
       payment_method: sale.payment_method || 'cash',
       notes: sale.notes || ''
     })
+    const items = (sale.sale_items || []).map((it: any) => ({
+      id: it.id,
+      product_name: it.product_name,
+      product_sku: it.product_sku,
+      quantity: Number(it.quantity) || 0,
+      unit_price: Number(it.unit_price) || 0,
+      discount_reason: it.discount_reason || ''
+    }))
+    setEditItems(items)
     setShowEditSaleModal(true)
   }
 
   const submitEditSale = async () => {
     if (!selectedSale) return
     try {
+      // Mettre à jour les articles modifiés (prix/remise). Quantité/produit non modifiables ici
+      const origItems = selectedSale.sale_items || []
+      const updates = editItems.filter(ei => {
+        const orig = origItems.find((o: any) => o.id === ei.id)
+        if (!orig) return false
+        const changedPrice = Number(orig.unit_price) !== Number(ei.unit_price)
+        const changedReason = (orig.discount_reason || '') !== (ei.discount_reason || '')
+        return changedPrice || changedReason
+      })
+      if (updates.length > 0) {
+        const updateCalls = updates.map(u => {
+          const newTotal = (Number(u.unit_price) || 0) * (Number(u.quantity) || 0)
+          return supabase
+            .from('sale_items')
+            .update({ unit_price: u.unit_price, total_price: newTotal, discount_reason: u.discount_reason || null })
+            .eq('id', u.id)
+        })
+        const results = await Promise.all(updateCalls)
+        const failure = results.find(r => (r as any).error)
+        if (failure && (failure as any).error) throw (failure as any).error
+      }
+
+      // Recalculer les totaux avec TVA
+      const newSubtotal = editItems.reduce((sum, it) => sum + ((Number(it.unit_price) || 0) * (Number(it.quantity) || 0)), 0)
+      const newTax = newSubtotal * (taxRate / 100)
+      const newTotal = newSubtotal + newTax
+
       const payload: any = {
         customer_name: editForm.customer_name || null,
         customer_email: editForm.customer_email || null,
         customer_phone: editForm.customer_phone || null,
         payment_method: editForm.payment_method,
         notes: editForm.notes ?? null,
+        subtotal: newSubtotal,
+        tax_amount: newTax,
+        total_amount: newTotal,
         updated_at: new Date().toISOString()
       }
       const { error } = await supabase
@@ -266,6 +324,21 @@ export default function Sales() {
       toast({ title: 'Erreur', description: "Impossible de modifier la vente.", variant: 'destructive' })
     }
   }
+
+  const updateEditItemPrice = (id: string, value: string) => {
+    const price = parseFloat(value)
+    setEditItems(prev => prev.map(it => it.id === id ? { ...it, unit_price: isNaN(price) ? 0 : price } : it))
+  }
+
+  const updateEditItemReason = (id: string, value: string) => {
+    setEditItems(prev => prev.map(it => it.id === id ? { ...it, discount_reason: value } : it))
+  }
+
+  const computeEditSubtotal = () => {
+    return editItems.reduce((sum, it) => sum + ((Number(it.unit_price) || 0) * (Number(it.quantity) || 0)), 0)
+  }
+  const computeEditTax = () => computeEditSubtotal() * (taxRate / 100)
+  const computeEditTotal = () => computeEditSubtotal() + computeEditTax()
 
   const handleNewSale = () => {
     if (!canCreateSale) {
@@ -1382,6 +1455,50 @@ export default function Sales() {
                 <label className="text-sm font-medium">Notes</label>
                 <Textarea value={editForm.notes || ''} onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))} className="min-h-[120px]" />
                 <p className="text-xs text-muted-foreground mt-1">Astuce: utilisez des notes claires. Les balises [ERROR] et [RESOLVED] sont gérées automatiquement par les actions.</p>
+              </div>
+            </div>
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold">Articles de la vente</h3>
+                <span className="text-xs text-muted-foreground">Qté/produit non éditables ici</span>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produit</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Qté</TableHead>
+                      <TableHead>PU</TableHead>
+                      <TableHead>Raison remise</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {editItems.map(item => {
+                      const lineTotal = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0)
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{item.product_name}</TableCell>
+                          <TableCell className="whitespace-nowrap">{item.product_sku}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell className="min-w-[120px]">
+                            <Input type="number" step="0.01" value={String(item.unit_price)} onChange={(e) => updateEditItemPrice(item.id, e.target.value)} />
+                          </TableCell>
+                          <TableCell className="min-w-[200px]">
+                            <Input value={item.discount_reason || ''} onChange={(e) => updateEditItemReason(item.id, e.target.value)} placeholder="Si prix inférieur" />
+                          </TableCell>
+                          <TableCell className="font-medium">{formatAmount(lineTotal)}</TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-4 space-y-1">
+                <div className="flex justify-between"><span>Sous-total</span><span>{formatAmount(computeEditSubtotal())}</span></div>
+                <div className="flex justify-between"><span>TVA ({taxRate}%)</span><span>{formatAmount(computeEditTax())}</span></div>
+                <div className="flex justify-between font-semibold text-lg"><span>Total</span><span>{formatAmount(computeEditTotal())}</span></div>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
