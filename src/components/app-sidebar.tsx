@@ -284,9 +284,7 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
       <div className="fixed left-0 top-0 h-full w-80 bg-background border-r shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded" />
             <div>
               <h1 className="text-xl font-bold text-primary">GesFlex</h1>
               <p className="text-xs text-muted-foreground">Gestion de vente</p>
@@ -410,9 +408,7 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
       <Sidebar className={`${collapsed ? "w-16" : "w-64"} border-r bg-gradient-to-b from-primary/5 to-background transition-all duration-300 hidden lg:block`}>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded" />
             {!collapsed && (
               <div>
                 <h1 className="text-xl font-bold text-primary">GesFlex</h1>

@@ -10,7 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg'],
+      includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg', 'logo.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
@@ -25,15 +25,21 @@ export default defineConfig({
         background_color: '#ffffff',
         icons: [
           {
+            src: '/logo.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/logo.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
             src: '/favicon.ico',
             sizes: '16x16 32x32 48x48 64x64',
             type: 'image/x-icon'
-          },
-          {
-            src: '/placeholder.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any'
           }
         ]
       },
