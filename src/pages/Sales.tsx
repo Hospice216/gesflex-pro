@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -32,6 +33,12 @@ export default function Sales() {
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [selectedSale, setSelectedSale] = useState<any>(null)
+  const [showReportErrorModal, setShowReportErrorModal] = useState(false)
+  const [showResolveErrorModal, setShowResolveErrorModal] = useState(false)
+  const [showEditSaleModal, setShowEditSaleModal] = useState(false)
+  const [errorReportText, setErrorReportText] = useState("")
+  const [resolveText, setResolveText] = useState("")
+  const [editForm, setEditForm] = useState<{ customer_name?: string | null; customer_email?: string | null; customer_phone?: string | null; payment_method?: string; notes?: string | null }>({})
   const [salesPage, setSalesPage] = useState(1)
   const [salesPageSize, setSalesPageSize] = useState<number | 'all'>(20)
   const [filters, setFilters] = useState({
@@ -49,6 +56,8 @@ export default function Sales() {
   const canPrintReceipt = userProfile?.role && ['Vendeur', 'Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
   const canHandleReturns = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
   const canCancelSales = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
+  const canResolveSaleError = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
+  const canEditSaleMeta = userProfile?.role && ['Manager', 'Admin', 'SuperAdmin'].includes(userProfile.role)
   
   const canManageOwnSale = (sale: any) => {
     if (!userProfile?.id) return false
@@ -159,6 +168,102 @@ export default function Sales() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const hasErrorReported = (sale: any) => {
+    return typeof sale?.notes === 'string' && sale.notes.includes('[ERROR]')
+  }
+
+  const handleReportError = (sale: any) => {
+    setSelectedSale(sale)
+    setErrorReportText("")
+    setShowReportErrorModal(true)
+  }
+
+  const submitReportError = async () => {
+    if (!selectedSale) return
+    try {
+      const reporter = `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || userProfile?.email || 'Utilisateur'
+      const header = `[ERROR] Signalée par ${reporter} le ${new Date().toLocaleString('fr-FR')}\nRaison: ${errorReportText || 'Non spécifiée'}\n---\n`
+      const updatedNotes = header + (selectedSale.notes || '')
+      const { error } = await supabase
+        .from('sales')
+        .update({ notes: updatedNotes, updated_at: new Date().toISOString() })
+        .eq('id', selectedSale.id)
+      if (error) throw error
+      toast({ title: 'Erreur signalée', description: 'La vente a été marquée pour révision.' })
+      setShowReportErrorModal(false)
+      setSelectedSale(null)
+      fetchSales()
+    } catch (e) {
+      console.error('Report error failed:', e)
+      toast({ title: "Permission refusée ou erreur", description: "Impossible de signaler l'erreur.", variant: 'destructive' })
+    }
+  }
+
+  const handleResolveError = (sale: any) => {
+    setSelectedSale(sale)
+    setResolveText("")
+    setShowResolveErrorModal(true)
+  }
+
+  const submitResolveError = async () => {
+    if (!selectedSale) return
+    try {
+      const resolver = `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || userProfile?.email || 'Admin'
+      const originalNotes: string = selectedSale.notes || ''
+      const resolvedNotes = originalNotes.replace('[ERROR]', '[RESOLVED]') + `\n[RESOLUTION] Par ${resolver} le ${new Date().toLocaleString('fr-FR')}\n${resolveText || ''}`
+      const { error } = await supabase
+        .from('sales')
+        .update({ notes: resolvedNotes, updated_at: new Date().toISOString() })
+        .eq('id', selectedSale.id)
+      if (error) throw error
+      toast({ title: 'Erreur résolue', description: 'La vente a été marquée comme résolue.' })
+      setShowResolveErrorModal(false)
+      setSelectedSale(null)
+      fetchSales()
+    } catch (e) {
+      console.error('Resolve error failed:', e)
+      toast({ title: 'Erreur', description: 'Impossible de marquer comme résolue.', variant: 'destructive' })
+    }
+  }
+
+  const handleEditSale = (sale: any) => {
+    setSelectedSale(sale)
+    setEditForm({
+      customer_name: sale.customer_name || '',
+      customer_email: sale.customer_email || '',
+      customer_phone: sale.customer_phone || '',
+      payment_method: sale.payment_method || 'cash',
+      notes: sale.notes || ''
+    })
+    setShowEditSaleModal(true)
+  }
+
+  const submitEditSale = async () => {
+    if (!selectedSale) return
+    try {
+      const payload: any = {
+        customer_name: editForm.customer_name || null,
+        customer_email: editForm.customer_email || null,
+        customer_phone: editForm.customer_phone || null,
+        payment_method: editForm.payment_method,
+        notes: editForm.notes ?? null,
+        updated_at: new Date().toISOString()
+      }
+      const { error } = await supabase
+        .from('sales')
+        .update(payload)
+        .eq('id', selectedSale.id)
+      if (error) throw error
+      toast({ title: 'Vente mise à jour', description: 'Les informations ont été enregistrées.' })
+      setShowEditSaleModal(false)
+      setSelectedSale(null)
+      fetchSales()
+    } catch (e) {
+      console.error('Edit sale failed:', e)
+      toast({ title: 'Erreur', description: "Impossible de modifier la vente.", variant: 'destructive' })
     }
   }
 
@@ -814,12 +919,17 @@ export default function Sales() {
                   </TableHeader>
                   <TableBody>
                     {paginatedSales.map((sale) => (
-                      <TableRow key={sale.id}>
+                      <TableRow key={sale.id} className={hasErrorReported(sale) ? 'border border-red-300 bg-red-50/40' : ''}>
                         <TableCell className="font-medium">{sale.sale_code}</TableCell>
                         <TableCell>{sale.customer_name || "Client anonyme"}</TableCell>
                         <TableCell>{sale.stores?.name}</TableCell>
                         <TableCell className="font-medium">{formatAmount(sale.total_amount)}</TableCell>
-                        <TableCell className="max-w-[280px] truncate">{getProductsLabel(sale)}</TableCell>
+                        <TableCell className="max-w-[280px] truncate flex items-center gap-2">
+                          {hasErrorReported(sale) && (
+                            <Badge variant="destructive">Erreur signalée</Badge>
+                          )}
+                          <span className="truncate">{getProductsLabel(sale)}</span>
+                        </TableCell>
                         <TableCell>
                           {getStatusBadge(sale.status || "completed")}
                         </TableCell>
@@ -848,6 +958,21 @@ export default function Sales() {
                               <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
                                 Imprimer reçu
                               </DropdownMenuItem>
+                              {!hasErrorReported(sale) && (
+                                <DropdownMenuItem onClick={() => handleReportError(sale)}>
+                                  Signaler une erreur
+                                </DropdownMenuItem>
+                              )}
+                              {hasErrorReported(sale) && canResolveSaleError && (
+                                <DropdownMenuItem onClick={() => handleResolveError(sale)}>
+                                  Marquer comme résolue
+                                </DropdownMenuItem>
+                              )}
+                              {canEditSaleMeta && (
+                                <DropdownMenuItem onClick={() => handleEditSale(sale)}>
+                                  Modifier la vente
+                                </DropdownMenuItem>
+                              )}
                               {(canHandleReturns || canManageOwnSale(sale)) && (
                                 <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
                                   Retour/Échange
@@ -873,14 +998,17 @@ export default function Sales() {
               {/* Mobile cards */}
               <div className="space-y-3 sm:hidden">
                 {paginatedSales.map((sale) => (
-                  <div key={sale.id} className="border rounded-lg p-3">
+                  <div key={sale.id} className={`border rounded-lg p-3 ${hasErrorReported(sale) ? 'border-red-300 bg-red-50/40' : ''}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{sale.sale_code}</p>
                         <p className="text-sm text-muted-foreground truncate">{sale.customer_name || "Client anonyme"}</p>
                       </div>
                       <div>
-                        {getStatusBadge(sale.status || "completed")}
+                        <div className="flex items-center gap-2">
+                          {hasErrorReported(sale) && <Badge variant="destructive">Erreur</Badge>}
+                          {getStatusBadge(sale.status || "completed")}
+                        </div>
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -929,6 +1057,21 @@ export default function Sales() {
                           <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
                             Imprimer reçu
                           </DropdownMenuItem>
+                          {!hasErrorReported(sale) && (
+                            <DropdownMenuItem onClick={() => handleReportError(sale)}>
+                              Signaler une erreur
+                            </DropdownMenuItem>
+                          )}
+                          {hasErrorReported(sale) && canResolveSaleError && (
+                            <DropdownMenuItem onClick={() => handleResolveError(sale)}>
+                              Marquer comme résolue
+                            </DropdownMenuItem>
+                          )}
+                          {canEditSaleMeta && (
+                            <DropdownMenuItem onClick={() => handleEditSale(sale)}>
+                              Modifier la vente
+                            </DropdownMenuItem>
+                          )}
                           {(canHandleReturns || canManageOwnSale(sale)) && (
                             <DropdownMenuItem onClick={() => handleReturnExchange(sale)}>
                               Retour/Échange
@@ -989,6 +1132,17 @@ export default function Sales() {
             </div>
             
             <div className="space-y-4">
+              {hasErrorReported(selectedSale) && (
+                <div className="p-3 border border-red-300 bg-red-50 rounded-md">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="font-medium">Erreur signalée</span>
+                  </div>
+                  <p className="text-sm text-red-700/90 mt-2 whitespace-pre-line">
+                    {selectedSale.notes}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="font-medium text-sm text-gray-600">Code de vente</label>
@@ -1137,6 +1291,102 @@ export default function Sales() {
                 <AlertTriangle className="w-4 h-4" />
                 Confirmer l'annulation
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale: Signaler une erreur */}
+      {showReportErrorModal && selectedSale && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Signaler une erreur</h2>
+              <Button variant="ghost" onClick={() => setShowReportErrorModal(false)}>✕</Button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">Vente: <span className="font-medium">{selectedSale.sale_code}</span></p>
+            <Textarea
+              placeholder="Décrivez l'erreur (ex: mauvais produit, mauvaise quantité, client, etc.)"
+              value={errorReportText}
+              onChange={(e) => setErrorReportText(e.target.value)}
+              className="min-h-[120px]"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowReportErrorModal(false)}>Annuler</Button>
+              <Button onClick={submitReportError}>Envoyer</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale: Marquer comme résolue */}
+      {showResolveErrorModal && selectedSale && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Résoudre l'erreur</h2>
+              <Button variant="ghost" onClick={() => setShowResolveErrorModal(false)}>✕</Button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">Vente: <span className="font-medium">{selectedSale.sale_code}</span></p>
+            <Textarea
+              placeholder="Note de résolution (optionnelle)"
+              value={resolveText}
+              onChange={(e) => setResolveText(e.target.value)}
+              className="min-h-[100px]"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowResolveErrorModal(false)}>Annuler</Button>
+              <Button onClick={submitResolveError}>Marquer résolue</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale: Modifier vente (métadonnées) */}
+      {showEditSaleModal && selectedSale && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Modifier la vente</h2>
+              <Button variant="ghost" onClick={() => setShowEditSaleModal(false)}>✕</Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Nom du client</label>
+                <Input value={editForm.customer_name || ''} onChange={(e) => setEditForm(prev => ({ ...prev, customer_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input type="email" value={editForm.customer_email || ''} onChange={(e) => setEditForm(prev => ({ ...prev, customer_email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Téléphone</label>
+                <Input value={editForm.customer_phone || ''} onChange={(e) => setEditForm(prev => ({ ...prev, customer_phone: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Méthode de paiement</label>
+                <Select value={editForm.payment_method || ''} onValueChange={(v) => setEditForm(prev => ({ ...prev, payment_method: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Méthode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Espèces</SelectItem>
+                    <SelectItem value="card">Carte</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
+                    <SelectItem value="check">Chèque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Textarea value={editForm.notes || ''} onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))} className="min-h-[120px]" />
+                <p className="text-xs text-muted-foreground mt-1">Astuce: utilisez des notes claires. Les balises [ERROR] et [RESOLVED] sont gérées automatiquement par les actions.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setShowEditSaleModal(false)}>Annuler</Button>
+              <Button onClick={submitEditSale}>Enregistrer</Button>
             </div>
           </div>
         </div>
