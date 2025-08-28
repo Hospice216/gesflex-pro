@@ -454,11 +454,11 @@ ${(items || []).map((it: any, idx: number) => {
                 className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Par page</span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-sm text-muted-foreground hidden sm:inline">Par page</span>
                 <Select value={String(returnsPageSize)} onValueChange={(v) => setReturnsPageSize(v === 'all' ? 'all' : parseInt(v))}>
-                  <SelectTrigger className="h-8 w-[92px]">
+                  <SelectTrigger className="h-9 w-full sm:w-[92px]">
                     <SelectValue placeholder="20" />
                   </SelectTrigger>
                   <SelectContent>
@@ -469,7 +469,7 @@ ${(items || []).map((it: any, idx: number) => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" size="touch" className="gap-2">
+              <Button variant="outline" size="touch" className="gap-2 w-full sm:w-auto">
                 <Filter className="w-4 h-4" />
                 Filtres
               </Button>

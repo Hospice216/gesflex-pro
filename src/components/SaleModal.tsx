@@ -392,7 +392,7 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[92vw] max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[92vw] sm:max-w-xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5" />
@@ -403,8 +403,8 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="store">Magasin *</Label>
               <SearchableSelect
@@ -434,7 +434,7 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="customer_name">Nom du client</Label>
               <Input
@@ -475,8 +475,8 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
             <CardHeader>
               <CardTitle>Ajouter des articles</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label>Produit</Label>
                   <SearchableSelect

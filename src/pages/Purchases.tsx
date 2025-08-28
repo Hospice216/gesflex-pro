@@ -640,7 +640,7 @@ function PurchasesContent() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Par page</span>
                         <Select value={String(historyPageSize)} onValueChange={(v) => setHistoryPageSize(v === 'all' ? 'all' : parseInt(v))}>
-                          <SelectTrigger className="h-8 w-[92px]">
+                          <SelectTrigger className="h-9 w-full sm:w-[92px]">
                             <SelectValue placeholder="20" />
                           </SelectTrigger>
                           <SelectContent>

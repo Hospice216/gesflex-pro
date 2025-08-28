@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, MoreHorizontal, Warehouse, AlertTriangle, CheckCircle, Package } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -17,6 +19,8 @@ export default function Inventory() {
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<string>("")
   const [selectedStore, setSelectedStore] = useState<string>("")
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState<{ store: string; status: string }>({ store: 'all', status: 'all' })
   const { toast } = useToast()
 
   useEffect(() => {
@@ -81,13 +85,28 @@ export default function Inventory() {
   const filteredInventory = useMemo(() => {
     const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
     const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
-    if (tokens.length === 0) return inventory
-    return inventory.filter((item: any) => {
+    let data = inventory
+    // apply filters
+    if (filters.store !== 'all') {
+      data = data.filter((it: any) => it.stores?.name === filters.store)
+    }
+    if (filters.status !== 'all') {
+      data = data.filter((it: any) => {
+        const stock = it.current_stock
+        const alertStock = it.products?.alert_stock || 10
+        if (filters.status === 'out') return stock === 0
+        if (filters.status === 'low') return stock > 0 && stock <= alertStock
+        if (filters.status === 'ok') return stock > alertStock
+        return true
+      })
+    }
+    if (tokens.length === 0) return data
+    return data.filter((item: any) => {
       const fields = [item.products?.name, item.products?.sku, item.stores?.name]
       const haystack = normalize(fields.filter(Boolean).join(' '))
       return tokens.every(t => haystack.includes(t))
     })
-  }, [inventory, searchTerm])
+  }, [inventory, searchTerm, filters])
 
   return (
     <div className="space-y-6">
@@ -175,10 +194,51 @@ export default function Inventory() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" size="touch" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Filtres
-        </Button>
+        <Popover open={showFilters} onOpenChange={setShowFilters}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="touch" className="gap-2 w-full sm:w-auto">
+              <Filter className="w-4 h-4" />
+              Filtres
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[92vw] sm:w-80 max-h-[70vh] overflow-auto" align="end">
+            <div className="space-y-4">
+              <h4 className="font-medium">Filtres</h4>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Magasin</label>
+                <Select value={filters.store} onValueChange={(value) => setFilters(prev => ({ ...prev, store: value }))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Tous les magasins" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les magasins</SelectItem>
+                    {Array.from(new Set(inventory.map((it: any) => it.stores?.name).filter(Boolean))).map((name: any) => (
+                      <SelectItem key={String(name)} value={String(name)}>{String(name)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Statut</label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Tous les statuts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous</SelectItem>
+                    <SelectItem value="out">Rupture</SelectItem>
+                    <SelectItem value="low">Stock faible</SelectItem>
+                    <SelectItem value="ok">Normal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button variant="outline" size="sm" onClick={() => setFilters({ store: 'all', status: 'all' })} className="flex-1">Effacer</Button>
+                <Button size="sm" onClick={() => setShowFilters(false)} className="flex-1">Appliquer</Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Inventory List */}

@@ -1139,28 +1139,30 @@ export default function Sales() {
               <CardTitle>Historique des ventes</CardTitle>
               <CardDescription>Liste de toutes vos transactions</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)} className="gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)} className="gap-2 w-full sm:w-auto">
                 <Upload className="w-4 h-4" /> Importer
               </Button>
-              <Button variant="outline" size="sm" onClick={exportSalesCSV} className="gap-2">
+              <Button variant="outline" size="sm" onClick={exportSalesCSV} className="gap-2 w-full sm:w-auto">
                 <Download className="w-4 h-4" /> Exporter
               </Button>
-              <Button variant="outline" size="sm" onClick={exportSalesPDF} className="gap-2">
+              <Button variant="outline" size="sm" onClick={exportSalesPDF} className="gap-2 w-full sm:w-auto">
                 <FileDown className="w-4 h-4" /> PDF
               </Button>
-              <span className="text-sm text-muted-foreground">Par page</span>
-              <Select value={String(salesPageSize)} onValueChange={(v) => setSalesPageSize(v === 'all' ? 'all' : parseInt(v))}>
-                <SelectTrigger className="h-8 w-[92px]">
+              <div className="flex items-center sm:gap-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">Par page</span>
+                <Select value={String(salesPageSize)} onValueChange={(v) => setSalesPageSize(v === 'all' ? 'all' : parseInt(v))}>
+                  <SelectTrigger className="h-9 w-full sm:w-[92px]">
                   <SelectValue placeholder="20" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="20">20</SelectItem>
                   <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>

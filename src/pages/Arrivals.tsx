@@ -590,6 +590,14 @@ export default function Arrivals() {
                       </Select>
                     </div>
                   </div>
+                  <div className="flex gap-2 w-full">
+                    <Button variant="outline" size="sm" onClick={clearFilters} className="flex-1">
+                      Effacer
+                    </Button>
+                    <Button size="sm" onClick={() => setFilterModalOpen(false)} className="flex-1">
+                      Appliquer
+                    </Button>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
