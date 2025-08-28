@@ -197,25 +197,25 @@ export default function Arrivals() {
 
   // ✅ SOLUTION : Fonction de filtrage optimisée
   const getFilteredItems = (items: any[]) => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
     let filtered = items.filter(item => {
-      const searchLower = searchTerm.toLowerCase()
-      
+      if (tokens.length === 0) return true
       if (item.type === 'Achat') {
         const p = item
-        return (
-          p.purchases?.suppliers?.name?.toLowerCase?.().includes(searchLower) ||
-          p.purchases?.products?.name?.toLowerCase?.().includes(searchLower) ||
-          p.purchases?.products?.sku?.toLowerCase?.().includes(searchLower) ||
-          p.suppliers?.name?.toLowerCase?.().includes(searchLower) ||
-          p.products?.name?.toLowerCase?.().includes(searchLower) ||
-          p.products?.sku?.toLowerCase?.().includes(searchLower)
-        )
+        const hay = normalize([
+          p.purchases?.suppliers?.name,
+          p.purchases?.products?.name,
+          p.purchases?.products?.sku,
+          p.suppliers?.name,
+          p.products?.name,
+          p.products?.sku,
+        ].filter(Boolean).join(' '))
+        return tokens.every(t => hay.includes(t))
       } else {
         const t = item
-        return (
-          t.transfer_code?.toLowerCase?.().includes(searchLower) ||
-          t.product_name?.toLowerCase?.().includes(searchLower)
-        )
+        const hay = normalize([t.transfer_code, t.product_name].filter(Boolean).join(' '))
+        return tokens.every(tok => hay.includes(tok))
       }
     })
 
@@ -448,9 +448,9 @@ export default function Arrivals() {
         </Card>
       ) : (
         <>
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+          {/* Search and Filters - responsive */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative sm:col-span-2">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Rechercher un arrivage..."
@@ -461,7 +461,7 @@ export default function Arrivals() {
             </div>
             <Popover open={filterModalOpen} onOpenChange={setFilterModalOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="touch" className="gap-2">
+                <Button variant="outline" size="touch" className="gap-2 w-full sm:w-auto">
                   <Filter className="w-4 h-4" />
                   Filtres
                   {(filters.supplier !== "all" || filters.store !== "all" || filters.dateRange || filters.status !== "all") && (
@@ -474,7 +474,7 @@ export default function Arrivals() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
+              <PopoverContent className="w-[92vw] sm:w-80 max-h-[70vh] overflow-auto" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Filtres</h4>
@@ -493,7 +493,7 @@ export default function Arrivals() {
                     <div>
                       <label className="text-sm font-medium">Type</label>
                       <Select value={filters.type} onValueChange={(value: 'all' | 'Achat' | 'Transfert') => setFilters(prev => ({ ...prev, type: value }))}>
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-1 w-full">
                           <SelectValue placeholder="Tous les types" />
                         </SelectTrigger>
                         <SelectContent>
@@ -507,7 +507,7 @@ export default function Arrivals() {
                       <div>
                         <label className="text-sm font-medium">Fournisseur</label>
                         <Select value={filters.supplier} onValueChange={(value) => setFilters(prev => ({ ...prev, supplier: value }))}>
-                          <SelectTrigger className="mt-1">
+                          <SelectTrigger className="mt-1 w-full">
                             <SelectValue placeholder="Tous les fournisseurs" />
                           </SelectTrigger>
                           <SelectContent>
@@ -525,7 +525,7 @@ export default function Arrivals() {
                     <div>
                       <label className="text-sm font-medium">Magasin</label>
                       <Select value={filters.store} onValueChange={(value) => setFilters(prev => ({ ...prev, store: value }))}>
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-1 w-full">
                           <SelectValue placeholder="Tous les magasins" />
                         </SelectTrigger>
                         <SelectContent>
@@ -579,7 +579,7 @@ export default function Arrivals() {
                     <div>
                       <label className="text-sm font-medium">Statut (historique)</label>
                       <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-1 w-full">
                           <SelectValue placeholder="Tous les statuts" />
                         </SelectTrigger>
                         <SelectContent>

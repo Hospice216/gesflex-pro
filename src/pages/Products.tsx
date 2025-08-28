@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useCurrency } from "@/hooks/useCurrency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -266,10 +266,26 @@ export default function Products() {
   }
 
   // ✅ SOLUTION : Filtrage séparé pour les produits et catégories
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(productsSearchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(productsSearchTerm.toLowerCase())
-  )
+  const filteredProducts = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(productsSearchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return products
+    return products.filter((product: any) => {
+      const storeNames = Array.isArray(product.product_stores)
+        ? product.product_stores.map((ps: any) => ps.stores?.name)
+        : []
+      const fields = [
+        product.name,
+        product.sku,
+        product.categories?.name,
+        product.units?.name,
+        product.units?.symbol,
+        ...storeNames,
+      ]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
+  }, [products, productsSearchTerm])
 
   const productsTotalPages = productsPageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredProducts.length / (productsPageSize as number)))
   const currentProductsPage = Math.min(productsPage, productsTotalPages)
@@ -292,7 +308,12 @@ export default function Products() {
     return acc
   }, {})
 
-  const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(categoriesSearchTerm.toLowerCase()))
+  const filteredCategories = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(categoriesSearchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return categories
+    return categories.filter((c: any) => tokens.every(t => normalize(c.name).includes(t)))
+  }, [categories, categoriesSearchTerm])
 
   // ✅ SOLUTION : Affichage d'erreur global avec possibilité de retry
   if (error && !canViewProducts) {
@@ -392,17 +413,17 @@ export default function Products() {
             </Card>
           ) : (
             <>
-              {/* ✅ NOUVEAU : Barre de recherche et filtres améliorés */}
+              {/* ✅ Recherche simple alignée avec les autres pages */}
               <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <div className="relative w-full sm:flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Rechercher un produit par nom ou SKU..."
                         value={productsSearchTerm}
                         onChange={(e) => setProductsSearchTerm(e.target.value)}
-                        className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
+                        placeholder="Rechercher (nom, SKU, catégorie, unité, magasin)"
+                        className="pl-9"
                       />
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
@@ -645,13 +666,13 @@ export default function Products() {
           <Card className="bg-gradient-card shadow-card">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <div className="relative w-full sm:flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher une catégorie..."
                     value={categoriesSearchTerm}
                     onChange={(e) => setCategoriesSearchTerm(e.target.value)}
-                    className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
+                    placeholder="Rechercher une catégorie"
+                    className="pl-9"
                   />
                 </div>
                 {/* ✅ BOUTON : Visible uniquement pour les admins */}

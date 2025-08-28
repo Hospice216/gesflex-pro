@@ -305,12 +305,19 @@ ${(items || []).map((it: any, idx: number) => {
 
   // ✅ SOLUTION : Filtrage optimisé avec useMemo
   const filteredReturns = useMemo(() => {
-    return returns.filter(returnItem => 
-      searchTerm === "" || 
-      returnItem.return_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      returnItem.original_sale?.sale_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      returnItem.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return returns
+    return returns.filter((ret: any) => {
+      const fields = [
+        ret.return_code,
+        ret.original_sale?.sale_code,
+        ret.customer_name,
+        ret.return_reason,
+      ]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
   }, [returns, searchTerm])
 
   const returnsTotalPages = returnsPageSize === 'all' ? 1 : Math.max(1, Math.ceil(filteredReturns.length / (returnsPageSize as number)))

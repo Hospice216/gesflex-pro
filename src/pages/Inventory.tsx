@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, MoreHorizontal, Warehouse, AlertTriangle, CheckCircle, Package } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import InventoryAdjustmentModal from "@/components/InventoryAdjustmentModal"
@@ -78,11 +78,16 @@ export default function Inventory() {
   const outOfStockItems = inventory.filter(item => item.current_stock === 0).length
   const overstockItems = 0 // À implémenter selon les règles métier
 
-  const filteredInventory = inventory.filter(item => 
-    searchTerm === "" || 
-    item.products?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.products?.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredInventory = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return inventory
+    return inventory.filter((item: any) => {
+      const fields = [item.products?.name, item.products?.sku, item.stores?.name]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
+  }, [inventory, searchTerm])
 
   return (
     <div className="space-y-6">

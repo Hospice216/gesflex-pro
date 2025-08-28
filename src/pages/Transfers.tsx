@@ -206,18 +206,20 @@ export default function Transfers() {
 
   // ✅ SOLUTION : Filtrage optimisé avec useMemo
   const filteredTransfers = useMemo(() => {
-    return transfers.filter(transfer => {
-      const searchTerm = filters.search.toLowerCase()
-      const matchesSearch = !filters.search || 
-        transfer.product?.name?.toLowerCase().includes(searchTerm) ||
-        transfer.product?.sku?.toLowerCase().includes(searchTerm) ||
-        transfer.source_store?.name?.toLowerCase().includes(searchTerm) ||
-        transfer.destination_store?.name?.toLowerCase().includes(searchTerm)
-
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(filters.search || '').split(/\s+/).filter(Boolean)
+    return transfers.filter((transfer: any) => {
+      const hay = normalize([
+        transfer.transfer_code,
+        transfer.product?.name,
+        transfer.product?.sku,
+        transfer.source_store?.name,
+        transfer.destination_store?.name,
+      ].filter(Boolean).join(' '))
+      const matchesSearch = tokens.length === 0 || tokens.every(t => hay.includes(t))
       const matchesSourceStore = filters.sourceStore === "all" || transfer.source_store_id === filters.sourceStore
       const matchesDestinationStore = filters.destinationStore === "all" || transfer.destination_store_id === filters.destinationStore
       const matchesStatus = filters.status === "all" || transfer.status === filters.status
-
       return matchesSearch && matchesSourceStore && matchesDestinationStore && matchesStatus
     })
   }, [transfers, filters])
@@ -356,24 +358,24 @@ export default function Transfers() {
             </Card>
           </div>
 
-          {/* Filters */}
+          {/* Filters - responsive */}
           <Card>
             <CardContent className="pt-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                <div className="flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="sm:col-span-2 lg:col-span-1">
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Rechercher par produit, SKU, magasin..."
                       value={filters.search}
                       onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="pl-8"
+                      className="pl-8 h-10"
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-3 flex-wrap">
                   <Select value={filters.sourceStore} onValueChange={(value) => setFilters(prev => ({ ...prev, sourceStore: value }))}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Magasin source" />
                     </SelectTrigger>
                     <SelectContent>
@@ -385,7 +387,7 @@ export default function Transfers() {
                   </Select>
 
                   <Select value={filters.destinationStore} onValueChange={(value) => setFilters(prev => ({ ...prev, destinationStore: value }))}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Magasin destination" />
                     </SelectTrigger>
                     <SelectContent>
@@ -397,7 +399,7 @@ export default function Transfers() {
                   </Select>
 
                   <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Statut" />
                     </SelectTrigger>
                     <SelectContent>

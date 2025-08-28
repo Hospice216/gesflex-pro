@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Package } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
@@ -220,42 +221,24 @@ export default function InventoryAdjustmentModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Produit</Label>
-            <Select 
-              value={formData.product_id} 
+            <SearchableSelect
+              value={formData.product_id}
               onValueChange={(value) => setFormData(prev => ({ ...prev, product_id: value }))}
+              options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
+              placeholder="Sélectionner un produit"
               disabled={!!productId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un produit" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} - {product.sku}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Magasin</Label>
-            <Select 
-              value={formData.store_id} 
+            <SearchableSelect
+              value={formData.store_id}
               onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}
+              options={stores.map(s => ({ value: s.id, label: s.name }))}
+              placeholder="Sélectionner un magasin"
               disabled={!!storeId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un magasin" />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           {currentStock !== null && (

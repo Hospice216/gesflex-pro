@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Package, Truck } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
@@ -320,27 +321,12 @@ export default function StoreTransferModal({
               Magasin Source
               <span className="text-xs text-muted-foreground">(Vos magasins assignés)</span>
             </Label>
-            <Select 
-              value={formData.source_store_id} 
+            <SearchableSelect
+              value={formData.source_store_id}
               onValueChange={(value) => setFormData(prev => ({ ...prev, source_store_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner le magasin source" />
-              </SelectTrigger>
-              <SelectContent>
-                {sourceStores.length > 0 ? (
-                  sourceStores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="no-access" disabled>
-                    Aucun magasin accessible
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+              options={sourceStores.map(s => ({ value: s.id, label: s.name }))}
+              placeholder="Sélectionner le magasin source"
+            />
             {sourceStores.length === 0 && (
               <p className="text-xs text-destructive">
                 Vous devez être assigné à au moins un magasin pour créer des transferts
@@ -354,29 +340,14 @@ export default function StoreTransferModal({
               Magasin Destination
               <span className="text-xs text-muted-foreground">(Tous les magasins disponibles)</span>
             </Label>
-            <Select 
-              value={formData.destination_store_id} 
+            <SearchableSelect
+              value={formData.destination_store_id}
               onValueChange={(value) => setFormData(prev => ({ ...prev, destination_store_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner le magasin destination" />
-              </SelectTrigger>
-              <SelectContent>
-                {destinationStores.length > 0 ? (
-                  destinationStores
-                    .filter(store => store.id !== formData.source_store_id)
-                    .map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))
-                ) : (
-                  <SelectItem value="no-available" disabled>
-                    Aucun magasin disponible
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+              options={destinationStores
+                .filter(store => store.id !== formData.source_store_id)
+                .map(s => ({ value: s.id, label: s.name }))}
+              placeholder="Sélectionner le magasin destination"
+            />
             {destinationStores.length === 0 && (
               <p className="text-xs text-destructive">
                 Aucun magasin destination disponible
@@ -386,21 +357,12 @@ export default function StoreTransferModal({
 
           <div className="space-y-2">
             <Label>Produit</Label>
-            <Select 
-              value={formData.product_id} 
+            <SearchableSelect
+              value={formData.product_id}
               onValueChange={(value) => setFormData(prev => ({ ...prev, product_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un produit" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} - {product.sku}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
+              placeholder="Sélectionner un produit"
+            />
           </div>
 
           {currentStock !== null && (

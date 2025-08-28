@@ -182,38 +182,48 @@ export default function Dashboard() {
     }
   }
 
-  // Récupérer les magasins de l'utilisateur depuis la table user_stores
+  // Récupérer les magasins visibles dans le sélecteur
   useEffect(() => {
-    const fetchUserStores = async () => {
+    const fetchStoresForSelector = async () => {
       if (!userProfile?.id) return
-      
       try {
-        const { data, error } = await supabase
-          .from('user_stores')
-          .select(`
-            store_id,
-            stores (name)
-          `)
-          .eq('user_id', userProfile.id)
-        
-        if (error) {
-          console.error('Erreur récupération magasins:', error)
-          return
+        const isAdmin = userProfile.role === 'Admin' || userProfile.role === 'SuperAdmin'
+        if (isAdmin) {
+          // Admin/SuperAdmin: voir tous les magasins
+          const { data, error } = await supabase
+            .from('stores')
+            .select('id, name')
+            .order('name', { ascending: true })
+          if (error) {
+            console.error('Erreur récupération magasins (admin):', error)
+            return
+          }
+          setUserStores((data || []).map(s => ({ id: s.id, name: s.name })))
+        } else {
+          // Autres rôles: magasins assignés
+          const { data, error } = await supabase
+            .from('user_stores')
+            .select(`
+              store_id,
+              stores (name)
+            `)
+            .eq('user_id', userProfile.id)
+          if (error) {
+            console.error('Erreur récupération magasins:', error)
+            return
+          }
+          const stores = data?.map(item => ({
+            id: item.store_id,
+            name: (item.stores as any)?.name || `Magasin ${item.store_id}`
+          })) || []
+          setUserStores(stores)
         }
-        
-        const stores = data?.map(item => ({
-          id: item.store_id,
-          name: (item.stores as any)?.name || `Magasin ${item.store_id}`
-        })) || []
-        
-        setUserStores(stores)
       } catch (error) {
         console.error('Erreur récupération magasins:', error)
       }
     }
-    
-    fetchUserStores()
-  }, [userProfile?.id])
+    fetchStoresForSelector()
+  }, [userProfile?.id, userProfile?.role])
   
   // ✅ SOLUTION : Vérification des permissions avant navigation
   const handleNewSale = () => {

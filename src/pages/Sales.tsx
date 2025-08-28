@@ -8,13 +8,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { Plus, Search, Filter, MoreHorizontal, TrendingUp, DollarSign, CreditCard, Users, CalendarIcon, RefreshCw, AlertTriangle } from "lucide-react"
+import { Plus, Search, Filter, MoreHorizontal, TrendingUp, DollarSign, CreditCard, Users, CalendarIcon, RefreshCw, AlertTriangle, Upload, Download, FileDown } from "lucide-react"
 import { useState, useEffect, useMemo } from "react"
 import { useCurrency } from "@/hooks/useCurrency"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import SaleModal from "@/components/SaleModal"
+import SaleImportModal from "@/components/SaleImportModal"
 import Breadcrumb from "@/components/Breadcrumb"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -28,6 +29,181 @@ export default function Sales() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showSaleModal, setShowSaleModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+
+  const exportSalesCSV = () => {
+    try {
+      const headers = [
+        'Code',
+        'Client',
+        'Magasin',
+        'Montant',
+        'Produits',
+        'Statut',
+        'Date',
+        'Vendeur',
+        'Quantité vendue',
+      ]
+
+      const rows = filteredSales.map((sale: any) => {
+        const date = new Date(sale.created_at)
+        const totalQty = Array.isArray(sale.sale_items) ? sale.sale_items.reduce((n: number, it: any) => n + (Number(it.quantity) || 0), 0) : 0
+        const produits = Array.isArray(sale.sale_items) ? sale.sale_items.map((it: any) => `${it.product_name} (${it.product_sku})`).join(' | ') : ''
+        const vendeur = sale.users ? `${sale.users.first_name || ''} ${sale.users.last_name || ''}`.trim() || sale.users.email || '' : ''
+        return [
+          sale.sale_code || '',
+          sale.customer_name || '',
+          sale.stores?.name || '',
+          String(sale.total_amount ?? ''),
+          produits,
+          sale.status || 'completed',
+          format(date, 'dd/MM/yyyy HH:mm', { locale: fr }),
+          vendeur,
+          String(totalQty),
+        ]
+      })
+
+      const csv = [headers, ...rows]
+        .map(r => r.map(cell => {
+          const val = String(cell ?? '')
+          // Escape quotes and wrap if needed
+          const escaped = '"' + val.replace(/"/g, '""') + '"'
+          return escaped
+        }).join(','))
+        .join('\n')
+
+      // Add BOM for Excel compatibility
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const nowStr = format(new Date(), 'yyyyMMdd_HHmm')
+      link.download = `ventes_${nowStr}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Export CSV error:', e)
+      toast({ title: 'Erreur', description: "Impossible d'exporter les ventes", variant: 'destructive' })
+    }
+  }
+
+  const exportSalesPDF = () => {
+    try {
+      const fromStr = filters?.dateRange?.from ? format(filters.dateRange.from, 'dd/MM/yyyy', { locale: fr }) : '—'
+      const toStr = filters?.dateRange?.to ? format(filters.dateRange.to, 'dd/MM/yyyy', { locale: fr }) : '—'
+      const storeStr = !filters?.store || filters.store === 'all' ? 'Tous' : String(filters.store)
+      const statusStr = (() => {
+        switch (filters?.status) {
+          case 'completed': return 'Payé'
+          case 'pending': return 'En attente'
+          case 'cancelled': return 'Annulé'
+          case 'all':
+          default: return 'Tous'
+        }
+      })()
+      const rowsHtml = filteredSales.map((sale: any) => {
+        const date = new Date(sale.created_at)
+        const totalQty = Array.isArray(sale.sale_items) ? sale.sale_items.reduce((n: number, it: any) => n + (Number(it.quantity) || 0), 0) : 0
+        const produits = Array.isArray(sale.sale_items) ? sale.sale_items.map((it: any) => `${it.product_name} (${it.product_sku})`).join(' | ') : ''
+        const vendeur = sale.users ? `${sale.users.first_name || ''} ${sale.users.last_name || ''}`.trim() || sale.users.email || '' : ''
+        return `
+          <tr>
+            <td>${sale.sale_code || ''}</td>
+            <td>${sale.customer_name || ''}</td>
+            <td>${sale.stores?.name || ''}</td>
+            <td>${sale.total_amount ?? ''}</td>
+            <td>${produits}</td>
+            <td>${sale.status || 'completed'}</td>
+            <td>${format(date, 'dd/MM/yyyy HH:mm', { locale: fr })}</td>
+            <td>${vendeur}</td>
+            <td>${totalQty}</td>
+          </tr>`
+      }).join('')
+
+      const style = `
+        <style>
+          @media print { @page { size: auto; margin: 16mm; } }
+          body { font-family: Arial, sans-serif; padding: 16px; position: relative; }
+          .watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 0; opacity: 0.06; }
+          .watermark img { max-width: 70%; max-height: 70%; }
+          .content { position: relative; z-index: 1; }
+          h1 { font-size: 18px; margin-bottom: 12px; }
+          .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+          .brand img { width: 28px; height: 28px; object-fit: contain; }
+          .brand-name { font-weight: 700; font-size: 16px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; }
+          th { background: #f5f5f5; text-align: left; }
+        </style>
+      `
+      const nowStr = format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Export ventes</title>
+            ${style}
+          </head>
+          <body>
+            <div class="watermark"><img src="/logo.png" alt="GesFlex Pro" /></div>
+            <div class="content">
+              <div class="brand"><img src="/logo.png" alt="GesFlex Pro" /><div class="brand-name">GesFlex Pro</div></div>
+              <h1>Ventes exportées (${nowStr})</h1>
+              <div class="filters">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Période - De</th>
+                      <th>Période - À</th>
+                      <th>Magasin</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>${fromStr}</td>
+                      <td>${toStr}</td>
+                      <td>${storeStr}</td>
+                      <td>${statusStr}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Client</th>
+                  <th>Magasin</th>
+                  <th>Montant</th>
+                  <th>Produits</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                  <th>Vendeur</th>
+                  <th>Quantité vendue</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              </table>
+            </div>
+            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 300); };</script>
+          </body>
+        </html>
+      `
+      const win = window.open('', '_blank')
+      if (!win) return
+      win.document.open()
+      win.document.write(html)
+      win.document.close()
+    } catch (e) {
+      console.error('Export PDF error:', e)
+      toast({ title: 'Erreur', description: "Impossible d'exporter en PDF", variant: 'destructive' })
+    }
+  }
   const [showFilters, setShowFilters] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showReturnModal, setShowReturnModal] = useState(false)
@@ -555,13 +731,27 @@ export default function Sales() {
   }
 
   const filteredSales = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
     const validSales = sales.filter(validateSaleData)
-    
-    let filtered = validSales.filter(sale => 
-      searchTerm === "" || 
-      sale.sale_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+
+    let filtered = validSales.filter((sale) => {
+      if (tokens.length === 0) return true
+      const fields: string[] = []
+      fields.push(sale.sale_code)
+      fields.push(sale.customer_name)
+      fields.push(sale.stores?.name)
+      fields.push(sale.payment_method)
+      // Produits: nom + sku
+      if (Array.isArray(sale.sale_items)) {
+        sale.sale_items.forEach((it: any) => {
+          fields.push(it.product_name)
+          fields.push(it.product_sku)
+        })
+      }
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every((t) => haystack.includes(t))
+    })
 
     if (filters.store && filters.store !== "all") {
       filtered = filtered.filter(sale => sale.stores?.name === filters.store)
@@ -831,12 +1021,12 @@ export default function Sales() {
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Search and Filters - responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="relative sm:col-span-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Rechercher une vente..."
+            placeholder="Rechercher (code, client, magasin, produit, SKU, paiement)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
@@ -844,28 +1034,63 @@ export default function Sales() {
         </div>
         <Popover open={showFilters} onOpenChange={setShowFilters}>
           <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
               <Filter className="w-4 h-4" />
               Filtres
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
+          <PopoverContent className="w-[92vw] sm:w-80 max-h-[70vh] overflow-auto" align="end">
             <div className="space-y-4">
               <h4 className="font-medium leading-none">Filtres</h4>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Période</label>
-                <Calendar
-                  mode="range"
-                  selected={filters.dateRange}
-                  onSelect={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
-                  locale={fr}
-                  className="rounded-md border"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">De</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start h-9 font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {filters.dateRange?.from ? format(filters.dateRange.from, 'dd/MM/yyyy', { locale: fr }) : 'Date de début'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-[92vw] sm:w-auto" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={filters.dateRange?.from}
+                          onSelect={(date) => setFilters(prev => ({ ...prev, dateRange: { from: date || undefined, to: prev.dateRange?.to } }))}
+                          initialFocus
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">À</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start h-9 font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {filters.dateRange?.to ? format(filters.dateRange.to, 'dd/MM/yyyy', { locale: fr }) : 'Date de fin'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-[92vw] sm:w-auto" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={filters.dateRange?.to}
+                          onSelect={(date) => setFilters(prev => ({ ...prev, dateRange: { from: prev.dateRange?.from, to: date || undefined } }))}
+                          initialFocus
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Magasin</label>
                 <Select value={filters.store} onValueChange={(value) => setFilters(prev => ({ ...prev, store: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Tous les magasins" />
                   </SelectTrigger>
                   <SelectContent>
@@ -882,7 +1107,7 @@ export default function Sales() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Statut</label>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Tous les statuts" />
                   </SelectTrigger>
                   <SelectContent>
@@ -893,7 +1118,7 @@ export default function Sales() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full">
                 <Button variant="outline" size="sm" onClick={clearFilters} className="flex-1">
                   Effacer
                 </Button>
@@ -915,6 +1140,15 @@ export default function Sales() {
               <CardDescription>Liste de toutes vos transactions</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)} className="gap-2">
+                <Upload className="w-4 h-4" /> Importer
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportSalesCSV} className="gap-2">
+                <Download className="w-4 h-4" /> Exporter
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportSalesPDF} className="gap-2">
+                <FileDown className="w-4 h-4" /> PDF
+              </Button>
               <span className="text-sm text-muted-foreground">Par page</span>
               <Select value={String(salesPageSize)} onValueChange={(v) => setSalesPageSize(v === 'all' ? 'all' : parseInt(v))}>
                 <SelectTrigger className="h-8 w-[92px]">
@@ -1186,6 +1420,9 @@ export default function Sales() {
           )}
         </CardContent>
       </Card>
+
+      {/* Import Modal */}
+      <SaleImportModal open={showImportModal} onOpenChange={setShowImportModal} onSuccess={() => fetchSales()} />
         </>
       )}
 

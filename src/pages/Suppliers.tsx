@@ -80,11 +80,16 @@ export default function Suppliers() {
     }
   }
 
-  const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (supplier.contact_person && supplier.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredSuppliers = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return suppliers
+    return suppliers.filter((supplier: any) => {
+      const fields = [supplier.name, supplier.contact_person, supplier.phone, supplier.email]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
+  }, [suppliers, searchTerm])
 
   const totalSuppliers = suppliers.length
   const activeSuppliers = suppliers.filter(supplier => supplier.is_active).length

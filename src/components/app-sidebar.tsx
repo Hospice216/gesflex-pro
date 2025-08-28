@@ -131,16 +131,16 @@ const adminItems = [
     key: 'financial',
     roles: ["Admin", "SuperAdmin"] 
   },
-  { 
-    title: "Analytics", 
-    url: "/analytics", 
+    {
+    title: "Analytics",
+    url: "/analytics",
     icon: BarChart3, 
     key: 'analytics',
-    roles: ["Admin", "SuperAdmin"] 
+    roles: ["Admin", "SuperAdmin"]
   },
-  { 
-    title: "Rapports", 
-    url: "/reports", 
+  {
+    title: "Rapports",
+    url: "/reports",
     icon: PieChart, 
     key: 'reports',
     roles: ["Admin", "SuperAdmin"] 
@@ -283,7 +283,7 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
       />
       <div className="fixed left-0 top-0 h-full w-80 bg-background border-r shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
         <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded" />
             <div>
               <h1 className="text-xl font-bold text-primary">GesFlex</h1>
@@ -410,22 +410,43 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded" />
             {!collapsed && (
-              <div>
-                <h1 className="text-xl font-bold text-primary">GesFlex</h1>
-                <p className="text-xs text-muted-foreground">Gestion de vente</p>
-              </div>
-            )}
-          </div>
-        </SidebarHeader>
+            <div>
+              <h1 className="text-xl font-bold text-primary">GesFlex</h1>
+              <p className="text-xs text-muted-foreground">Gestion de vente</p>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
 
-        <SidebarContent className="px-2">
+      <SidebarContent className="px-2">
+        <SidebarGroup>
+          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
+            Navigation principale
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {filteredMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-12">
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="w-5 h-5 shrink-0" />
+                      {!collapsed && <span className="text-sm">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {filteredAdminItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-              Navigation principale
+              Administration
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {filteredMenuItems.map((item) => (
+                {filteredAdminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className="h-12">
                       <NavLink to={item.url} className={getNavCls}>
@@ -438,52 +459,31 @@ export function AppSidebar({ userRole, isMobileOpen, onMobileToggle }: AppSideba
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+        )}
 
-          {filteredAdminItems.length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-                Administration
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {filteredAdminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild className="h-12">
-                        <NavLink to={item.url} className={getNavCls}>
-                          <item.icon className="w-5 h-5 shrink-0" />
-                          {!collapsed && <span className="text-sm">{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-
-          {filteredUserItems.length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-                Utilisateur
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {filteredUserItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild className="h-12">
-                        <NavLink to={item.url} className={getNavCls}>
-                          <item.icon className="w-5 h-5 shrink-0" />
-                          {!collapsed && <span className="text-sm">{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-        </SidebarContent>
-      </Sidebar>
+        {filteredUserItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
+              Utilisateur
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredUserItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="h-12">
+                      <NavLink to={item.url} className={getNavCls}>
+                        <item.icon className="w-5 h-5 shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+    </Sidebar>
 
       {/* Mobile Navigation */}
       {isMobileOpen && <MobileNavigation />}

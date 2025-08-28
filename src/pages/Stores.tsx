@@ -85,11 +85,16 @@ export default function Stores() {
     }
   }
 
-  const filteredStores = stores.filter(store =>
-    store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (store.address && store.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (store.email && store.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredStores = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return stores
+    return stores.filter((store: any) => {
+      const fields = [store.name, store.code, store.address, store.email, store.phone]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
+  }, [stores, searchTerm])
 
   const totalStores = stores.length
   const activeStores = stores.filter(store => store.is_active).length

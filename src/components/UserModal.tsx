@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Users } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client"
@@ -444,18 +445,12 @@ export default function UserModal({ open, onOpenChange, onSuccess, user, mode }:
           {formData.role === 'Vendeur' && (
             <div className="space-y-2">
               <Label>Magasin (un seul)</Label>
-              <Select value={formData.store_id} onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Aucun magasin assigné" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.store_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}
+                options={stores.map(s => ({ value: s.id, label: s.name }))}
+                placeholder="Aucun magasin assigné"
+              />
             </div>
           )}
 
@@ -479,20 +474,15 @@ export default function UserModal({ open, onOpenChange, onSuccess, user, mode }:
               {formData.store_ids.length > 0 && (
                 <div className="space-y-1">
                   <Label>Magasin principal</Label>
-                  <Select value={formData.store_id} onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.store_ids.map((sid) => {
-                        const s = stores.find(st => st.id === sid)
-                        if (!s) return null
-                        return (
-                          <SelectItem key={sid} value={sid}>{s.name}</SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={formData.store_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, store_id: value }))}
+                    options={formData.store_ids.map((sid) => {
+                      const s = stores.find(st => st.id === sid)
+                      return s ? { value: sid, label: s.name } : null
+                    }).filter(Boolean) as { value: string; label: string }[]}
+                    placeholder="Sélectionner le magasin principal"
+                  />
                 </div>
               )}
             </div>

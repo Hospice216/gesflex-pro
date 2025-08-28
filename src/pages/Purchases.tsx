@@ -192,13 +192,14 @@ function PurchasesContent() {
 
   // ✅ SOLUTION : Calculs optimisés avec useMemo
   const { totalAmount, pendingCount, filteredPendingPurchases, filteredHistoryPurchases } = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
     const total = purchases.reduce((sum, purchase) => sum + (purchase.total_amount || 0), 0)
-    const filtered = purchases.filter(purchase =>
-      purchase.suppliers?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.products?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.products?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.stores?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filtered = tokens.length === 0 ? purchases : purchases.filter((purchase: any) => {
+      const fields = [purchase.suppliers?.name, purchase.products?.name, purchase.products?.sku, purchase.stores?.name, purchase.purchase_code]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
     const pending = purchases.filter(p => p.status !== 'validated').length
     const filteredPending = filtered.filter(p => p.status !== 'validated')
     const filteredHistory = filtered.filter(p => p.status === 'validated')

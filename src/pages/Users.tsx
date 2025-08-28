@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, MoreHorizontal, Users as UsersIcon, UserCheck, UserX, Crown } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
@@ -150,11 +150,16 @@ export default function Users() {
   const pendingUsers = users.filter(user => user.status === "pending").length
   const inactiveUsers = users.filter(user => user.status === "rejected").length
 
-  const filteredUsers = users.filter(user => 
-    searchTerm === "" || 
-    `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredUsers = useMemo(() => {
+    const normalize = (s: any) => (s ? String(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() : '')
+    const tokens = normalize(searchTerm).split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return users
+    return users.filter((user: any) => {
+      const fields = [user.first_name, user.last_name, user.email, user.role, user.phone]
+      const haystack = normalize(fields.filter(Boolean).join(' '))
+      return tokens.every(t => haystack.includes(t))
+    })
+  }, [users, searchTerm])
 
   return (
     <div className="space-y-6">

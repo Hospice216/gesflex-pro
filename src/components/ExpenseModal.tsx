@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/SearchableSelect"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
@@ -248,19 +249,12 @@ export function ExpenseModal({ open, onOpenChange, onSuccess }: ExpenseModalProp
 
             <div className="space-y-2">
               <Label htmlFor="store">Magasin</Label>
-              <Select value={formData.store_id} onValueChange={(value) => handleInputChange('store_id', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un magasin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les magasins</SelectItem>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.store_id}
+                onValueChange={(value) => handleInputChange('store_id', value)}
+                options={[{ value: 'all', label: 'Tous les magasins' }, ...stores.map(s => ({ value: s.id, label: s.name }))]}
+                placeholder="Sélectionner un magasin"
+              />
             </div>
           </div>
 

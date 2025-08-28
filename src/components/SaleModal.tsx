@@ -38,6 +38,7 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
   const [loading, setLoading] = useState(false)
   const [stores, setStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [storeProducts, setStoreProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [formData, setFormData] = useState({
     store_id: "",
@@ -117,6 +118,35 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
       setProducts(data || [])
     }
   }
+
+  // Charger les produits disponibles pour le magasin sélectionné (filtre par stock)
+  useEffect(() => {
+    const loadStoreProducts = async () => {
+      if (!formData.store_id) {
+        setStoreProducts([])
+        setSelectedProduct("")
+        return
+      }
+      const { data, error } = await supabase
+        .from('product_stores')
+        .select('current_stock, products:products!inner(id, name, sku, current_sale_price, min_sale_price)')
+        .eq('store_id', formData.store_id)
+        .gt('current_stock', 0)
+
+      if (error) {
+        // En cas d'erreur, retomber sur la liste complète
+        setStoreProducts([])
+        return
+      }
+      const mapped: Product[] = (data || []).map((row: any) => row.products)
+      setStoreProducts(mapped)
+      // Réinitialiser le produit sélectionné si non disponible dans ce magasin
+      if (selectedProduct && !mapped.find(p => p.id === selectedProduct)) {
+        setSelectedProduct("")
+      }
+    }
+    loadStoreProducts()
+  }, [formData.store_id])
 
   const resetForm = () => {
     setFormData({
@@ -388,18 +418,19 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
 
             <div className="space-y-2">
               <Label htmlFor="payment_method">Méthode de paiement *</Label>
-              <Select value={formData.payment_method} onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value }))}>
-                <SelectTrigger className="h-10 sm:h-12">
-                  <SelectValue placeholder="Sélectionner une méthode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Espèces</SelectItem>
-                  <SelectItem value="card">Carte bancaire</SelectItem>
-                  <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                  <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
-                  <SelectItem value="check">Chèque</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.payment_method}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value }))}
+                options={[
+                  { value: 'cash', label: 'Espèces' },
+                  { value: 'card', label: 'Carte bancaire' },
+                  { value: 'mobile_money', label: 'Mobile Money' },
+                  { value: 'bank_transfer', label: 'Virement bancaire' },
+                  { value: 'check', label: 'Chèque' },
+                ]}
+                placeholder="Sélectionner une méthode"
+                triggerClassName="h-10 sm:h-12"
+              />
             </div>
           </div>
 
@@ -451,7 +482,7 @@ export default function SaleModal({ open, onOpenChange, onSuccess }: SaleModalPr
                   <SearchableSelect
                     value={selectedProduct}
                     onValueChange={setSelectedProduct}
-                    options={products.map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
+                    options={(formData.store_id ? storeProducts : products).map(p => ({ value: p.id, label: `${p.name} - ${p.sku}` }))}
                     placeholder="Sélectionner"
                     triggerClassName="h-10 sm:h-12"
                   />
